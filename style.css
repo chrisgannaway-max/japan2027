@@ -27,3 +27,15 @@ h1,h2,h3{font-family:"Playfair Display",Georgia,serif;line-height:1.1;margin-top
 footer{background:var(--ink);color:#fff;padding:36px 0}.footer-inner{display:flex;justify-content:space-between;align-items:center}.footer-inner p{margin:4px 0 0;color:#cfd6dc}.footer-inner a{color:#fff}
 @media(max-width:900px){.card-grid,.place-grid,.planning-grid{grid-template-columns:repeat(2,1fr)}.intro{grid-template-columns:1fr}.day{grid-template-columns:120px 1fr}.hero{min-height:680px}.hero-content{margin:auto;width:min(1180px,calc(100% - 36px))}}
 @media(max-width:650px){.nav-links{display:none;position:absolute;right:18px;top:65px;flex-direction:column;background:rgba(17,25,34,.96);padding:18px;border-radius:14px}.nav-links.open{display:flex}.menu-button{display:block}.trip-facts{gap:22px}.card-grid,.place-grid,.planning-grid{grid-template-columns:1fr}.day{grid-template-columns:1fr}.day-date{display:flex;justify-content:space-between;align-items:center}.route-strip{justify-content:flex-start}.section{padding:64px 0}.footer-inner{align-items:flex-start;gap:18px;flex-direction:column}}
+
+/* Clickable itinerary-to-picture links */
+.place-jump{color:var(--accent-dark);font-weight:800;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.place-jump:hover,.place-jump:focus{color:var(--accent);background:#fff1f3;border-radius:4px;outline:none}
+.place-actions{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px}
+.place-actions .video-link{margin-top:0}
+.back-link{color:var(--muted);font-size:.86rem;font-weight:800;text-decoration:none}
+.back-link:hover{text-decoration:underline}
+.place-card{scroll-margin-top:24px;transition:box-shadow .25s ease,transform .25s ease,border-color .25s ease}
+.place-card:focus{outline:3px solid rgba(183,25,50,.28);outline-offset:4px}
+.place-card.flash{border-color:var(--accent);box-shadow:0 0 0 5px rgba(183,25,50,.14),0 18px 44px rgba(26,29,34,.16);transform:translateY(-3px)}
+.day{scroll-margin-top:24px}

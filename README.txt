@@ -1,26 +1,21 @@
-JAPAN 2027 WEBSITE - GITHUB / VERCEL PACKAGE
+JAPAN 2027 WEBSITE — LINKED PICTURE GUIDE
 
-IMPORTANT: Unzip this package before uploading it to GitHub.
-Upload the CONTENTS of this folder to the repository root.
+UPLOAD THESE ITEMS TO THE ROOT OF YOUR GITHUB REPOSITORY:
 
-Your GitHub repository root should contain:
-  index.html
-  style.css
-  script.js
-  vercel.json
-  README.txt
-  assets/
-    Japan_Travel_Guide_Chris.pdf
+1. index.html
+2. style.css
+3. script.js
+4. vercel.json
+5. assets folder (including Japan_Travel_Guide_Chris.pdf)
 
-Verification before uploading:
-1. Open index.html in Notepad. The first line must be: <!doctype html>
-2. index.html should be only a few KB, not 15 MB.
-3. Keep the PDF inside assets/ and do not rename it to index.html.
+You do NOT need to upload README.txt for the website to work, although keeping it is harmless.
 
-Vercel settings:
-- Framework Preset: Other
-- Root Directory: leave blank if these files are in the repository root
-- Build Command: leave blank
-- Output Directory: leave blank
+IMPORTANT:
+- Delete or replace the old versions of index.html, style.css and script.js.
+- Keep the filenames exactly as shown.
+- The assets folder must remain a folder named "assets".
+- Do not upload the ZIP itself into the repository. Unzip it first and upload the files inside.
+- Vercel should redeploy automatically after the GitHub commit.
 
-After committing to GitHub, Vercel should redeploy automatically.
+NEW FEATURE:
+Place names in the itinerary are clickable. Clicking a name such as "Shibuya Crossing," "Dotonbori," "Kuromon Market" or "Umeda Sky Building" scrolls to the matching labeled picture card. Each picture card also has a "Back to this day" link.
