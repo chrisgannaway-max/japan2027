@@ -1,0 +1,17 @@
+# category_hint returned by the invoice extractor (lower-case) -> expense GL code
+categories:
+  linen: "5110"
+  guest supplies: "5120"
+  cleaning supplies: "5130"
+  f&b supplies: "5210"
+  utilities-electric: "6110"
+  utilities-gas: "6120"
+  utilities-water: "6130"
+  telecom / internet: "6140"
+  repairs & maintenance: "6200"
+  landscaping: "6210"
+  franchise fees: "6300"
+  marketing: "6400"
+  insurance: "6500"
+  professional fees: "6600"
+  other: "6900"

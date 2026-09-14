@@ -1,0 +1,48 @@
+# GL mapping for a Hilton (PEP) property.
+# Account codes below follow the USALI-style numbering commonly used in hotel charts;
+# REPLACE them with the codes from `python -m pms_to_odoo accounts`.
+property: HGI-EXAMPLE
+company: Example Hotel LLC
+journal: NA                 # create a "Night Audit" miscellaneous journal (code NA) in Odoo
+analytic: HGI-EXAMPLE       # optional analytic account per property
+tolerance: 0.01
+# suspense_account: "9999"  # uncomment to book unmapped lines to suspense instead of failing
+
+rules:
+  # ---- revenue (credits) ----
+  - {match: "^room revenue$",                     account: "4000", side: credit}
+  - {match: "^(no[- ]?show|cancellation) (revenue|fee)", account: "4010", side: credit}
+  - {match: "^(pet|late check.?out|early (check.?in|departure)) fee", account: "4020", side: credit}
+  - {match: "^(f&b|food|beverage|breakfast|pantry|market|sundry) (revenue|sales)?", account: "4100", side: credit}
+  - {match: "^(meeting|banquet|room rental)",      account: "4200", side: credit}
+  - {match: "^(parking|laundry|valet|vending|telephone|movie|other) (revenue)?", account: "4300", side: credit}
+  - {match: "^(honors|reward) (points )?(reimbursement|revenue)", account: "4400", side: credit}
+  - {match: "^(paid.?outs?|guest refunds?)$",     account: "4900", side: credit}   # negative on report -> debit
+  - {match: "^(adjustments?|allowances?|rebates?)", account: "4950", side: credit}
+
+  # ---- taxes (credits to liability) ----
+  - {match: "^(state|county|city|local)? ?(sales|occupancy|lodging|hotel|room|tourism|bed) tax", account: "2200", side: credit}
+  - {match: "^tax(es)?$",                          account: "2200", side: credit}
+
+  # ---- settlements (debits) ----
+  - {match: "^cash( (received|payments?))?$",      account: "1010", side: debit}
+  - {match: "^check(s)?$",                         account: "1010", side: debit}
+  - {match: "^(visa|mastercard|visa ?/ ?mc|master ?card)", account: "1120", side: debit}
+  - {match: "^(amex|american express)",            account: "1121", side: debit}
+  - {match: "^(discover|diners|jcb|union ?pay)",   account: "1122", side: debit}
+  - {match: "^(direct bill|city ledger|a/?r transfers?)", account: "1200", side: debit, partner: "{label}"}
+  - {match: "^(expedia|booking\\.com|ota|virtual card|travel agent)", account: "1130", side: debit}
+
+  # ---- ledger movements (signed: increase in receivable = debit) ----
+  - {match: "^guest ledger (net )?change",         account: "1210", side: signed, section: ""}
+  - {match: "^(advance|deposit) ledger (net )?change", account: "2300", side: signed}
+  - {match: "^(gift card|voucher) (redemption|liability)", account: "2310", side: signed}
+
+ignore:
+  - "^occupancy"
+  - "^adr$"
+  - "^revpar"
+  - "^rooms? (sold|available|occupied|out of order|comp)"
+  - "^(arrivals?|departures?|stay.?overs?|no.?shows?)$"
+  - "^total( revenue| payments| taxes)?$"        # totals are recomputed, not booked
+  - "^(opening|closing) balance"

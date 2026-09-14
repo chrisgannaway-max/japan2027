@@ -1,0 +1,24 @@
+property: HGI-EXAMPLE
+company: Example Hotel LLC
+journal: NA
+analytic: HGI-EXAMPLE
+tolerance: 0.01
+rules:
+  - {match: "^room revenue$", account: "4000", side: credit}
+  - {match: "^no[- ]?show revenue", account: "4010", side: credit}
+  - {match: "^pet fee", account: "4020", side: credit}
+  - {match: "^(breakfast|market) revenue", account: "4100", side: credit}
+  - {match: "^meeting room rental", account: "4200", side: credit}
+  - {match: "^paid outs?$", account: "4900", side: credit}
+  - {match: "^adjustments?$", account: "4950", side: credit}
+  - {match: "tax", account: "2200", side: credit}
+  - {match: "^cash$", account: "1010", side: debit}
+  - {match: "^visa/mc", account: "1120", side: debit}
+  - {match: "^amex", account: "1121", side: debit}
+  - {match: "^discover", account: "1122", side: debit}
+  - {match: "^direct bill", account: "1200", side: debit, partner: "{label}"}
+  - {match: "^expedia", account: "1130", side: debit}
+  - {match: "^guest ledger net change", account: "1210", side: signed}
+  - {match: "^advance deposit ledger", account: "2300", side: signed}
+ignore:
+  - "^total"

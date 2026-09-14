@@ -1,0 +1,15 @@
+# GL mapping stub for choice_advantage.  Copy the rules from hilton_pep.example.yaml and adjust the
+# label patterns to the wording used on this PMS's night-audit report once samples arrive.
+property: CHANGE-ME
+journal: NA
+tolerance: 0.01
+rules:
+  - {match: "^room revenue$", account: "4000", side: credit}
+  - {match: "tax", account: "2200", side: credit}
+  - {match: "^cash", account: "1010", side: debit}
+  - {match: "^(visa|mastercard|amex|discover)", account: "1120", side: debit}
+  - {match: "^(direct bill|city ledger)", account: "1200", side: debit}
+  - {match: "^guest ledger", account: "1210", side: signed}
+ignore:
+  - "^(occupancy|adr|revpar|rooms? (sold|available))"
+  - "^total"

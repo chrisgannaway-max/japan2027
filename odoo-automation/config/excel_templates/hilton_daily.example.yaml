@@ -1,0 +1,9 @@
+# Cell map for the GM's daily spreadsheet (Hilton example).
+# Adjust to the real template once we have it: either list individual cells under
+# `lines`, or point `ranges` at a label column + amount column.
+sheet: Daily
+property_cell: B1
+date_cell: B2
+lines: {}
+ranges:
+  - {label_col: A, amount_col: B, first_row: 4, last_row: 60, section: ""}

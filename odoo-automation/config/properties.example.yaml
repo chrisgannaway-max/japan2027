@@ -1,0 +1,38 @@
+# One block per hotel.  Copy to properties.yaml and edit.
+#   code:            short property code used in journal refs and file names
+#   brand / pms:     PEP | AGILYSYS | HOTELKEY | OPERA | CHOICEADV | SYNXIS
+#   gl_mapping:      YAML with report-label -> GL account rules (relative to this folder)
+#   excel_template:  optional cell map for the GM spreadsheet (interim input)
+#   company:         Odoo company name if the database is multi-company
+properties:
+  - code: HGI-EXAMPLE
+    name: Hilton Garden Inn Example
+    brand: Hilton
+    pms: PEP
+    company: Example Hotel LLC
+    gl_mapping: gl_mapping/hilton_pep.example.yaml
+    excel_template: excel_templates/hilton_daily.example.yaml
+
+  - code: CY-EXAMPLE
+    name: Courtyard Example
+    brand: Marriott
+    pms: AGILYSYS
+    gl_mapping: gl_mapping/marriott_agilysys.example.yaml
+
+  - code: HIE-EXAMPLE
+    name: Holiday Inn Express Example
+    brand: IHG
+    pms: HOTELKEY          # or OPERA
+    gl_mapping: gl_mapping/ihg_hotelkey.example.yaml
+
+  - code: CI-EXAMPLE
+    name: Comfort Inn Example
+    brand: Choice
+    pms: CHOICEADV
+    gl_mapping: gl_mapping/choice_advantage.example.yaml
+
+  - code: LQ-EXAMPLE
+    name: La Quinta Example
+    brand: Wyndham
+    pms: SYNXIS
+    gl_mapping: gl_mapping/wyndham_synxis.example.yaml

@@ -1,0 +1,42 @@
+                    HILTON GARDEN INN EXAMPLE
+                    DAILY REVENUE REPORT
+Business Date: 09/13/2026            Printed 09/14/2026 04:12
+                                          Today          MTD          YTD
+REVENUE
+Room Revenue                          12,480.00   168,220.50  3,204,118.20
+No-Show Revenue                          149.00       812.00     21,440.00
+Pet Fee                                   75.00       450.00      9,875.00
+Breakfast Revenue                        412.50     5,220.00    101,330.00
+Market Revenue                           186.25     2,410.75     44,102.10
+Meeting Room Rental                        0.00     1,200.00     18,600.00
+Paid Outs                                (40.00)     (120.00)    (2,310.00)
+Adjustments                              (89.00)     (640.00)   (12,440.00)
+Total Revenue                         13,173.75   177,553.25  3,384,715.30
+
+TAXES
+State Sales Tax                          779.16    10,497.53    199,925.29
+County Occupancy Tax                     624.00     8,411.03    160,205.91
+Total Taxes                            1,403.16    18,908.56    360,131.20
+
+SETTLEMENTS
+Cash                                     312.00     4,110.00     80,540.00
+Visa/MC                                8,914.22   119,004.10  2,301,772.80
+Amex                                   2,206.40    30,220.00    588,110.00
+Discover                                 418.90     5,006.00     97,431.00
+Direct Bill                            1,750.00    24,100.00    455,120.00
+Expedia Virtual Card                     642.39     9,120.68    171,220.00
+Total Payments                        14,243.91   191,560.78  3,694,193.80
+
+LEDGER
+Guest Ledger Net Change                  333.00     4,901.03     50,652.70
+Advance Deposit Ledger Net Change          0.00       (0.00)        (0.00)
+
+STATISTICS
+Rooms Sold                                   96
+Rooms Available                             120
+Occupancy %                               80.00
+ADR                                      130.00
+RevPAR                                   104.00
+Arrivals                                     41
+Departures                                   38
+Page 1 of 1
