@@ -208,9 +208,17 @@ so a file behaves identically on either path.
 
 ## Vendor invoices (no AI required)
 
-Managers upload an invoice on `/invoices`; the reader pre-fills a form; the manager checks
-it and submits; admin approves, exports the bills CSV in Odoo's Bills import layout, or
-creates the draft bill in Odoo directly.
+Managers upload an invoice on `/invoices`; the reader pre-fills the fields; the expense
+account is assigned automatically; the bill is **ready** at once if every field is present
+and it is not a duplicate. Admin's whole job is one click: *Download ready bills*, which
+produces Odoo's Bills import CSV and marks them exported (or *Create draft bill in Odoo*
+when the API is configured). Admin can hold or reject an invoice as an exception; nothing
+requires their approval.
+
+The expense account comes from, in order: the account this vendor received on a previous
+export or post (remembered automatically), the vendor patterns in
+`config/vendor_accounts.yaml`, keyword patterns on the description, then the default
+account. Changing the account on one invoice teaches the portal that vendor for next time.
 
 Two readers sit behind the same screen:
 

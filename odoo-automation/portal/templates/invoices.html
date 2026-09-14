@@ -16,7 +16,7 @@
 </div>
 {% if draft %}
 <div class="card">
-  <h2>Invoice #{{ draft.id }} · {{ draft.file_name }} <span class="pill {{ 'ok' if draft.status in ('approved','exported','posted') else ('bad' if draft.status == 'rejected' else 'warn') }}">{{ draft.status }}</span>
+  <h2>Invoice #{{ draft.id }} · {{ draft.file_name }} <span class="pill {{ 'ok' if draft.status in ('ready','exported','posted') else ('bad' if draft.status in ('rejected','held') else 'warn') }}">{{ draft.status.replace('_',' ') }}</span>
     <span class="pill muted">read by {{ draft.reader }}, confidence {{ draft.confidence }}</span></h2>
   {% if duplicate %}<p class="err">⚠ Looks like a duplicate of invoice #{{ duplicate.id }} ({{ duplicate.vendor_name }} {{ duplicate.invoice_number }}, {{ duplicate.status }}).</p>{% endif %}
   {% if draft.notes %}<p class="small">Reader notes: {{ draft.notes }}</p>{% endif %}
@@ -34,27 +34,28 @@
     <label style="grid-column:1/-1">Description <input id="f_desc" name="description" value="{{ draft.description or '' }}"></label>
     <label style="grid-column:1/-1">Notes <input id="f_notes" name="notes" value="{{ draft.notes or '' }}"></label>
     <div class="row" style="grid-column:1/-1">
-      <button class="btn secondary" type="submit" name="action" value="save">Save</button>
-      {% if not user.is_admin %}<button class="btn" type="submit" name="action" value="submit">Submit to accounting</button>{% endif %}
+      <button class="btn" type="submit" name="action" value="save">Save</button>
       {% if user.is_admin %}
-        <button class="btn" type="submit" name="action" value="approve">Approve</button>
+        {% if draft.status in ('held','needs_review') %}<button class="btn secondary" type="submit" name="action" value="release">Mark ready</button>{% endif %}
+        {% if draft.status == 'ready' %}<button class="btn secondary" type="submit" name="action" value="hold">Hold</button>{% endif %}
         <button class="btn secondary" type="submit" name="action" value="reject">Reject</button>
       {% endif %}
     </div>
+    <p class="small" style="grid-column:1/-1">Ready invoices go into the next export automatically. The expense account is assigned from the vendor's history, the vendor rules, or the default account; change it here only if it is wrong and the portal will remember the vendor next time.</p>
   </form>
-  {% if user.is_admin and odoo_enabled and draft.status in ('approved','exported') %}
+  {% if user.is_admin and odoo_enabled and draft.status in ('ready','exported') %}
     <form method="post" action="/invoices/{{ draft.id }}/post"><button class="btn" type="submit">Create draft bill in Odoo</button></form>
   {% endif %}
 </div>
 {% endif %}
 <div class="card">
   <div class="row" style="justify-content:space-between"><h2>Recent invoices</h2>
-    {% if user.is_admin %}<div class="row"><a class="btn" href="/invoices/export/bills.csv?status=approved">Export approved bills (Odoo CSV)</a><a class="btn secondary" href="/invoices/export/bills.csv?status=all">Export all</a></div>{% endif %}</div>
+    {% if user.is_admin %}<div class="row"><a class="btn" href="/invoices/export/bills.csv">Download ready bills (Odoo CSV)</a><a class="btn secondary" href="/invoices/export/bills.csv?status=all">All</a></div>{% endif %}</div>
   <div class="tablewrap"><table>
-    <thead><tr><th>#</th><th>Property</th><th>Vendor</th><th>Invoice</th><th>Date</th><th class="n">Total</th><th>Status</th><th>By</th></tr></thead>
+    <thead><tr><th>#</th><th>Property</th><th>Vendor</th><th>Invoice</th><th>Date</th><th class="n">Total</th><th>Account</th><th>Status</th><th>By</th></tr></thead>
     <tbody>{% for i in invoices %}
-      <tr><td><a href="/invoices/{{ i.id }}">{{ i.id }}</a></td><td>{{ i.property_code }}</td><td>{{ i.vendor_name }}</td><td>{{ i.invoice_number }}</td><td>{{ i.invoice_date }}</td><td class="n">{{ i.total }}</td>
-          <td><span class="pill {{ 'ok' if i.status in ('approved','exported','posted') else ('bad' if i.status == 'rejected' else 'warn') }}">{{ i.status }}</span></td><td>{{ i.uploaded_by }}</td></tr>
-    {% else %}<tr><td colspan="8" class="small">No invoices yet.</td></tr>{% endfor %}</tbody></table></div>
+      <tr><td><a href="/invoices/{{ i.id }}">{{ i.id }}</a></td><td>{{ i.property_code }}</td><td>{{ i.vendor_name }}</td><td>{{ i.invoice_number }}</td><td>{{ i.invoice_date }}</td><td class="n">{{ i.total }}</td><td>{{ i.account_code }}</td>
+          <td><span class="pill {{ 'ok' if i.status in ('ready','exported','posted') else ('bad' if i.status in ('rejected','held') else 'warn') }}">{{ i.status.replace('_',' ') }}</span></td><td>{{ i.uploaded_by }}</td></tr>
+    {% else %}<tr><td colspan="9" class="small">No invoices yet.</td></tr>{% endfor %}</tbody></table></div>
 </div>
 {% endblock %}

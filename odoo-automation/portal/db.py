@@ -55,6 +55,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     posted_at TEXT,
     odoo_move_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS vendor_accounts (
+    vendor_key TEXT PRIMARY KEY,
+    vendor_name TEXT,
+    account_code TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -149,3 +155,26 @@ class Database:
         with self._conn() as c:
             return c.execute("SELECT * FROM invoices WHERE lower(vendor_name)=lower(?) AND invoice_number=? AND id<>? "
                              "AND status<>'rejected' ORDER BY id LIMIT 1", (vendor_name, invoice_number, exclude_id)).fetchone()
+
+    # ---------------------------------------------------------------- vendor memory
+    @staticmethod
+    def vendor_key(name: str) -> str:
+        import re as _re
+        return _re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+
+    def remembered_account(self, vendor_name: str) -> Optional[str]:
+        key = self.vendor_key(vendor_name)
+        if not key:
+            return None
+        with self._conn() as c:
+            row = c.execute("SELECT account_code FROM vendor_accounts WHERE vendor_key=?", (key,)).fetchone()
+        return row["account_code"] if row else None
+
+    def remember_account(self, vendor_name: str, account_code: str) -> None:
+        key = self.vendor_key(vendor_name)
+        if not key or not account_code:
+            return
+        with self._conn() as c:
+            c.execute("INSERT INTO vendor_accounts(vendor_key, vendor_name, account_code, updated_at) VALUES(?,?,?,?) "
+                      "ON CONFLICT(vendor_key) DO UPDATE SET account_code=excluded.account_code, vendor_name=excluded.vendor_name, "
+                      "updated_at=excluded.updated_at", (key, vendor_name, account_code, datetime.now().isoformat(timespec="seconds")))

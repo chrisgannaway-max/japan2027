@@ -1,0 +1,22 @@
+# Automatic expense-account assignment for vendor invoices (no admin step).
+# Order of precedence: 1) account remembered from a previous export/post for the same vendor,
+# 2) `vendors` patterns below (matched against the vendor name), 3) `keywords` matched against
+# the vendor name + description, 4) default_account.  Copy to vendor_accounts.yaml.
+default_account: "6900"        # other operating expense - review at month end
+vendors:
+  - {match: "linen|laundry service", account: "5110"}
+  - {match: "\\bOG&E\\b|electric|power company",     account: "6110"}
+  - {match: "gas company|oklahoma natural gas|\\bONG\\b", account: "6120"}
+  - {match: "water|utilit(y|ies) authority",          account: "6130"}
+  - {match: "cox|at&t|spectrum|comcast|internet|telecom", account: "6140"}
+  - {match: "sysco|us foods|coffee|breakfast",       account: "5210"}
+  - {match: "ecolab|guest supply|amenit",             account: "5120"}
+  - {match: "hd supply|lowe's|home depot|plumbing|hvac|elevator", account: "6200"}
+  - {match: "lawn|landscap|pest",                     account: "6210"}
+  - {match: "hilton|marriott|ihg|choice hotels|wyndham|franchise", account: "6300"}
+  - {match: "insurance",                              account: "6500"}
+  - {match: "cpa|attorney|accounting|consult",        account: "6600"}
+keywords:
+  - {match: "towel|sheet|pillow", account: "5110"}
+  - {match: "repair|maintenance|service call", account: "6200"}
+  - {match: "advertis|marketing|ota fee", account: "6400"}
