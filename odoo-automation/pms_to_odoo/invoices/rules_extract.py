@@ -81,12 +81,22 @@ def guess_vendor(lines: list[str]) -> str:
 
 
 def extract_with_rules(path: str | Path, templates: Optional[list[dict]] = None) -> InvoiceData:
+    from .ocr import IMAGE_SUFFIXES, has_text_layer, ocr_available, ocr_text
     p = Path(path)
-    if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+    source = "text"
+    if p.suffix.lower() in IMAGE_SUFFIXES:
+        text = ocr_text(p)
+        source = "ocr"
+    else:
+        text = read_text(p)
+        if not has_text_layer(text):               # scanned PDF: no text layer
+            text = ocr_text(p)
+            source = "ocr"
+    if source == "ocr" and not has_text_layer(text):
+        why = ("image could not be read by OCR" if ocr_available()
+               else "OCR engine (tesseract) is not installed on the server")
         return InvoiceData(vendor_name="", invoice_number="", invoice_date=date.today().isoformat(), subtotal="0",
-                           total="0", lines=[], confidence="low",
-                           review_notes="Image file: no text layer to read. Enable the AI reader or enter the fields by hand.")
-    text = read_text(p)
+                           total="0", lines=[], confidence="low", review_notes=why)
     flat = collapse(text)
     lines = [l for l in text.splitlines() if l.strip() and not l.startswith("=====")]
     fields: dict[str, Optional[str]] = {}
@@ -112,14 +122,14 @@ def extract_with_rules(path: str | Path, templates: Optional[list[dict]] = None)
         subtotal = total - tax if total else Decimal("0")
     inv_date = _iso(fields.get("invoice_date")) or ""
     notes = []
+    if source == "ocr":
+        notes.append("read by OCR (scanned image)")
     if used_template:
         notes.append(f"vendor template: {used_template}")
     missing = [k for k, v in (("vendor", vendor), ("invoice number", fields.get("invoice_number")),
                               ("invoice date", inv_date), ("total", total or None)) if not v]
     if missing:
         notes.append("could not find: " + ", ".join(missing))
-    if not text.strip():
-        notes.append("no text in file (scanned image?)")
     confidence = "high" if used_template and not missing else ("medium" if len(missing) <= 1 else "low")
     return InvoiceData(
         vendor_name=vendor, vendor_tax_id=fields.get("vendor_tax_id"), invoice_number=fields.get("invoice_number") or "",

@@ -224,8 +224,8 @@ Two readers sit behind the same screen:
 
 | Reader   | Needs                       | Reads                                              | Set with                  |
 |----------|-----------------------------|----------------------------------------------------|---------------------------|
-| `rules`  | nothing                     | invoices whose PDF has a text layer (most e-mailed ones): vendor, tax id, invoice number, dates, subtotal, tax, total, PO. Per-vendor regex templates in `config/vendor_templates.yaml` make it exact for regular vendors. | default when no key is set, or `INVOICE_READER=rules` |
-| `claude` | `ANTHROPIC_API_KEY`, pay per use (cents per invoice) | everything above plus scanned images and line items, with a confidence | `INVOICE_READER=claude` or just setting the key |
+| `rules`  | nothing (Tesseract OCR is installed by the Dockerfile) | text PDFs directly; **photos and scanned PDFs through local OCR**. Vendor, tax id, invoice number, dates, subtotal, tax, total, PO. Per-vendor regex templates in `config/vendor_templates.yaml` make it exact for regular vendors. | default when no key is set, or `INVOICE_READER=rules` |
+| `claude` | `ANTHROPIC_API_KEY`, pay per use (cents per invoice) | everything above with better accuracy on messy scans, plus line items and a confidence | `INVOICE_READER=claude` or just setting the key |
 
 The AI reader is optional. If it is on and fails for any reason the upload falls back to the
 rules reader, so nothing is ever blocked on the service. Nothing on the night-audit side uses
