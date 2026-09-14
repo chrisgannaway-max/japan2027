@@ -5,6 +5,8 @@ from decimal import Decimal
 
 import pytest
 
+from pathlib import Path
+
 from conftest import FIXTURES
 from pms_to_odoo.mapping import GLMapping
 from pms_to_odoo.parsers import detect_pms, get_parser, read_text
@@ -204,3 +206,56 @@ def test_agilysys_totals_and_balance(agilysys):
     entry = GLMapping.load(CONFIG / "marriott_agilysys.example.yaml").build_entry(agilysys)
     assert entry.imbalance == 0
     assert entry.ref == "AGILYSYS-OKCAW-2026-07-08"
+
+
+# ------------------------------------------------------------------ SynXis (Wyndham)
+SYNXIS = FIXTURES / "synxis"
+
+
+@pytest.fixture(scope="module")
+def synxis():
+    return get_parser("SYNXIS").parse(SYNXIS / "transaction_totals_summary.txt", "LQ89051")
+
+
+def test_synxis_merges_companion_and_parses_rows(synxis):
+    assert detect_pms(read_text(SYNXIS / "transaction_totals_summary.txt")) == "SYNXIS"
+    assert detect_pms(read_text(SYNXIS / "hotel_ledger_compare.txt")) == "SYNXIS"
+    assert synxis.business_date == date(2025, 11, 11)                 # "For Yesterday (11 Nov 2025)"
+    assert synxis.pms_property_id == "89051"
+    assert synxis.property_name == "La Quinta Inn & Suites by Wyndham Oklahoma City Airport"
+    assert [Path(c).name for c in synxis.companions] == ["hotel_ledger_compare.txt"]
+    assert synxis.warnings == []
+    rows = [(l.section, l.code, l.label, l.amount) for l in synxis.lines]
+    assert ("revenue", "RM", "ROOM CHARGE", Decimal("4789.06")) in rows
+    assert ("revenue", "NS", "NO SHOW CHARGE", Decimal("72.00")) in rows       # description wraps two cells
+    assert ("revenue", "MARKET", "MARKET", Decimal("69.28")) in rows
+    assert ("tax", "1001", "State Tax 8.625%", Decimal("420.54")) in rows       # first row carries the date
+    assert ("tax", "5002", "Package tax for market", Decimal("2.85")) in rows
+    assert ("settlement", "MC", "MASTER CARD", Decimal("1825.61")) in rows      # sign flipped
+    assert ("settlement", "CA", "CASH", Decimal("33.22")) in rows
+    assert ("transfer", "DR", "DIRECT BILL", Decimal("0")) in rows
+    assert ("ledger", "", "Guest Ledger Net Change", Decimal("2174.66")) in rows
+    assert ("ledger", "", "AR Ledger Net Change", Decimal("260.06")) in rows
+    assert ("ledger", "", "Group Ledger Net Change", Decimal("0")) in rows
+    assert synxis.stats["Transactions Grand Total"] == Decimal("2434.72") == synxis.stats["Ledgers Grand Total Difference"]
+
+
+def test_synxis_totals_and_balance(synxis):
+    assert synxis.total("revenue") == Decimal("5030.34")
+    assert synxis.total("tax") == Decimal("873.08")
+    assert synxis.total("settlement") == Decimal("3468.70")
+    assert synxis.total("ledger") == Decimal("2434.72")
+    entry = GLMapping.load(CONFIG / "wyndham_synxis.example.yaml").build_entry(synxis)
+    assert entry.imbalance == 0
+    assert entry.ref == "SYNXIS-LQ89051-2025-11-11"
+
+
+def test_synxis_ledger_file_as_entry_point_and_missing_companion(tmp_path):
+    # starting from the ledger report finds the transaction report next to it
+    r = get_parser("SYNXIS").parse(SYNXIS / "hotel_ledger_compare.txt", "LQ89051")
+    assert r.total("revenue") == Decimal("5030.34") and r.total("ledger") == Decimal("2434.72")
+    # alone in a folder, the transaction report warns that the ledger movements are missing
+    alone = tmp_path / "transaction_totals_summary.txt"
+    alone.write_text((SYNXIS / "transaction_totals_summary.txt").read_text())
+    r2 = get_parser("SYNXIS").parse(alone, "LQ89051")
+    assert r2.total("ledger") == 0 and any("Ledger Comparison" in w for w in r2.warnings)

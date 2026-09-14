@@ -177,7 +177,11 @@ def cmd_batch(args) -> int:
     """
     props = load_properties(Path(args.config))
     rc = 0
+    consumed: set[str] = set()
     for f, original in _expand_inputs(Path(args.dir)):
+        if str(f.resolve()) in consumed:
+            print(f"\n=== {original.name} === merged into a previous report (companion file)")
+            continue
         print(f"\n=== {original.name}" + (f" -> {f.name}" if f != original else "") + " ===")
         try:
             text = read_text(f)
@@ -186,6 +190,7 @@ def cmd_batch(args) -> int:
             if pms:
                 probe = get_parser(pms).parse(f, "?", None)
                 report_id, report_name = probe.pms_property_id, probe.property_name
+                consumed.update(str(Path(c).resolve()) for c in probe.companions)
             if pms and not probe.recognised:
                 print(f"skip {f.name}: recognised as {pms} but not the report we book (statistics page?)")
                 continue

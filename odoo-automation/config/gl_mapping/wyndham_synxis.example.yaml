@@ -1,15 +1,34 @@
-# GL mapping stub for wyndham_synxis.  Copy the rules from hilton_pep.example.yaml and adjust the
-# label patterns to the wording used on this PMS's night-audit report once samples arrive.
-property: CHANGE-ME
+# SynXis Property Hub -> GL.  Built from the La Quinta OKC Airport (hotel 89051) sample:
+# Transaction Totals Summary + Hotel Ledger Comparison Report.
+# TIP: the Transaction Totals Summary has a GL Account column. If GL accounts are set on the
+# charge codes inside SynXis, they arrive as gl_code and the mapping becomes a direct lookup.
+property: LQ89051
+company: Example Hotel LLC
 journal: NA
+analytic: LQ89051
 tolerance: 0.01
+
 rules:
-  - {match: "^room revenue$", account: "4000", side: credit}
-  - {match: "tax", account: "2200", side: credit}
-  - {match: "^cash", account: "1010", side: debit}
-  - {match: "^(visa|mastercard|amex|discover)", account: "1120", side: debit}
-  - {match: "^(direct bill|city ledger)", account: "1200", side: debit}
-  - {match: "^guest ledger", account: "1210", side: signed}
-ignore:
-  - "^(occupancy|adr|revpar|rooms? (sold|available))"
-  - "^total"
+  # revenue (Base Type RoomCharge / Other)
+  - {code: RM,     account: "4000"}                 # ROOM CHARGE
+  - {code: NS,     account: "4010"}                 # NO SHOW CHARGE
+  - {code: ECKI,   account: "4020"}                 # EARLY CHECKIN REQUESTED
+  - {code: PETS,   account: "4020"}                 # PET IN ROOM
+  - {code: MARKET, account: "4120"}                 # MARKET
+  - {match: "room|rate", section: revenue, account: "4000"}
+  - {match: ".*",  section: revenue, account: "4300"}   # any other charge code -> other revenue (review!)
+  # taxes (Base Type Taxes)
+  - {match: ".*", section: tax, account: "2200"}
+  # settlements (positive = received)
+  - {code: CA, account: "1010"}                     # CASH
+  - {code: AX, account: "1121"}                     # AMERICAN EXPRESS
+  - {code: MC, account: "1120"}                     # MASTER CARD
+  - {code: VI, account: "1120"}                     # VISA
+  - {code: DS, account: "1122"}                     # DISCOVER
+  - {match: "check", section: settlement, account: "1010"}
+  - {match: "wyndham|rewards|redemption", section: settlement, account: "1140"}   # due from Wyndham
+  # ledger movements (Hotel Ledger Comparison "Overall Total" differences)
+  - {match: "^(guest|group|house) ledger net change", account: "1210"}
+  - {match: "^ar ledger net change",                  account: "1200"}
+  - {match: "deposit ledger net change",              account: "2300"}
+# DIRECT BILL (DR, Base Type DirectBill) is a transfer to the AR ledger and is not booked.

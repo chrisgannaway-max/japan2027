@@ -6,13 +6,13 @@ from typing import Optional
 
 from .base import BaseParser, collapse, read_text
 from .agilysys import MarriottAgilysysParser
-from .brands import WyndhamSynxisParser
 from .choice import ChoiceAdvantageParser
 from .excel_template import ExcelTemplateParser
 from .generic_table import GenericTableParser
 from .hotelkey import IHGHotelKeyParser
 from .opera import IHGOperaParser
 from .pep import HiltonPEPParser
+from .synxis import WyndhamSynxisParser
 
 PARSERS: dict[str, type[BaseParser]] = {
     "PEP": HiltonPEPParser,              # Hilton
@@ -50,7 +50,7 @@ def detect_pms(text: str) -> Optional[str]:
         return "OPERA"
     if "agilysys" in low or ("ledger summary" in low and "transaction type :" in low):
         return "AGILYSYS"
-    if re.search(r"\bsynxis\b", low):
+    if "transaction totals summary" in low or "hotel ledger comparison" in low or re.search(r"\bsynxis\b", low):
         return "SYNXIS"
     return None
 

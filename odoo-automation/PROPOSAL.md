@@ -1,7 +1,7 @@
 # Odoo accounting automation: approach and findings
 
-Prepared from Harshil's email and the sample night-audit reports (Hilton PEP, choiceADVANTAGE,
-HotelKey, OPERA, Agilysys). Only the Wyndham (SynXis) sample is still needed.
+Prepared from Harshil's email and the sample night-audit reports for all six PMS formats
+(Hilton PEP, choiceADVANTAGE, HotelKey, OPERA, Agilysys, SynXis).
 
 ## 1. What we are replacing
 
@@ -16,7 +16,7 @@ into it instead of generating import files.
 
 ## 2. What the samples showed
 
-All five packs carry the same information in different clothes: revenue by code, taxes,
+All six packs carry the same information in different clothes: revenue by code, taxes,
 payments by type, and the movement of the PMS ledgers (guest ledger, city/AR ledger,
 advance deposits). Each report also carries its own control totals, and on every sample the
 identity **revenue + tax - payments = change in ledgers** holds to the cent. That identity is
@@ -28,6 +28,7 @@ what makes the journal entry balance without any plug.
 | Choice / choiceADVANTAGE | Night-audit pack, needs **Final Transaction Closeout** and **Hotel Journal Summary** | Only codes with activity print. Direct-bill and AR credit applications are internal transfers. |
 | IHG / HotelKey         | **Trial Balance Report** (e-mailed PDF)            | Folio-centric signs (charges debit, payments credit); "(Offset)" rows are the ledgers. Self-balancing. |
 | IHG / OPERA            | Daily **Trial Balance**                            | Payments negative; ledger movement = Balance Today - Yesterday. Direct bill is a transfer to AR. |
+| Wyndham / SynXis       | **Transaction Totals Summary** + **Hotel Ledger Comparison** | Two reports per night; charge codes with Base Type, ledger differences per ledger. Also has a GL Account column. |
 | Marriott / Agilysys Stay | **Ledger Summary**, Group By: Ledger             | One block per ledger with beginning/ending balances. Transfers net to zero. Has a GL CODE column: if filled in Agilysys, mapping becomes a direct code lookup. |
 
 Reports that are *not* needed for the entry: PEP and HotelKey "Hotel Statistics", the guest
@@ -83,7 +84,7 @@ mind if the preference is to stay entirely inside Odoo. Bills stay in draft unti
 
 ## 6. Open questions for Shirish
 
-1. The Wyndham (SynXis) sample pack, and the Hilton Excel template the GMs fill in.
+1. The Hilton Excel template the GMs fill in (shows today's account mapping).
 2. Two or three **consecutive** days per property, including a day with direct-bill
    activity and a day with an AR payment, to confirm how each PMS reports transfers (PEP
    "BILL TO COMPANY", OPERA "AR Ledger Payments").
@@ -106,16 +107,16 @@ mind if the preference is to stay entirely inside Odoo. Bills stay in draft unti
 
 | Phase | Scope                                                                   | Depends on               |
 |-------|-------------------------------------------------------------------------|--------------------------|
-| 0     | Parsers for the five sampled PMSs (done); connect to an Odoo sandbox; dump chart of accounts | API access |
+| 0     | Parsers for all six PMSs (done); connect to an Odoo sandbox; dump chart of accounts | API access |
 | 1     | OKCON (PEP) end to end, draft entries, one week in parallel with the spreadsheet | chart of accounts |
-| 2     | TXI47, OKCMD, Candlewood, OKCAW live; SynXis parser                      | SynXis sample, delivery method |
+| 2     | TXI47, OKCMD, Candlewood, OKCAW, LQ89051 live                            | delivery method          |
 | 3     | Invoice intake for one property; tune vendor matching and categories     | invoice samples          |
 | 4     | Scheduling and report collection; switch pilots to auto-post             |                          |
 | 5     | Roll out to all properties                                               |                          |
 
 ## 8. What exists in this repo now
 
-Parsers for PEP, choiceADVANTAGE, HotelKey, OPERA and Agilysys tested on the real samples (entries balance
+Parsers for all six PMS formats tested on the real samples (entries balance
 to the cent), GL mapping engine, idempotent journal creation, Odoo client for both API
 styles, invoice extraction pipeline and draft bill creation, CLI with auto-detection and
 `.eml` support, example configs, tests. See `README.md` for usage.

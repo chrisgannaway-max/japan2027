@@ -47,8 +47,10 @@ properties:
     company: Example Hotel LLC
     gl_mapping: gl_mapping/marriott_agilysys.example.yaml
 
-  - code: LQ-EXAMPLE
-    name: La Quinta Example (no sample report yet)
+  - code: LQ89051
+    name: La Quinta Inn & Suites by Wyndham Oklahoma City Airport
     brand: Wyndham
     pms: SYNXIS
+    pms_property_id: "89051"          # SynXis hotel id printed after the hotel name
+    company: Example Hotel LLC
     gl_mapping: gl_mapping/wyndham_synxis.example.yaml

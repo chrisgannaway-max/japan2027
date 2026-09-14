@@ -33,6 +33,7 @@ class ReportLine:
     section: str = ""
     source: str = ""          # parser:file:line for the audit trail
     code: str = ""            # PMS transaction code when the report prints one (RM, T1, 9002, RR)
+    gl_code: str = ""         # GL account printed by the PMS itself, when configured there (Agilysys, SynXis)
 
 
 @dataclass
@@ -50,6 +51,7 @@ class DailyReport:
     property_name: str = ""
     warnings: list[str] = field(default_factory=list)
     recognised: bool = True       # False when the file is not the report this parser books
+    companions: list[str] = field(default_factory=list)   # other files merged into this report
 
     def total(self, section: str) -> Decimal:
         return sum((l.amount for l in self.lines if l.section == section), Decimal("0"))

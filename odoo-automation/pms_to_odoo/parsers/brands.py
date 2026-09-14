@@ -1,14 +1,7 @@
-"""PMS parsers without a sample report yet.
+"""Placeholder module: every PMS in the email now has a dedicated parser.
 
-Wyndham (SynXis) starts as the generic label+amount table parser. When its night-audit
-pack arrives, give it a dedicated module like pep.py / agilysys.py.
+Add new brands here as GenericTableParser subclasses until a sample report arrives.
 """
 from __future__ import annotations
 
-from .generic_table import GenericTableParser
-
-
-class WyndhamSynxisParser(GenericTableParser):
-    """Wyndham - SynXis Property Hub.  TODO: sample report needed."""
-    pms = "SYNXIS"
-    brand = "Wyndham"
+from .generic_table import GenericTableParser  # noqa: F401

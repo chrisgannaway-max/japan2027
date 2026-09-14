@@ -12,8 +12,8 @@ Automation for two manual processes at the hotels:
 
 ## Status
 
-Parsers are built and tested on real sample reports for five of the six PMS formats. Each
-sample produces an entry that balances to the cent against the report's own control totals.
+Parsers are built and tested on real sample reports for all six PMS formats. Each sample
+produces an entry that balances to the cent against the report's own control totals.
 
 | Brand    | PMS              | Report the parser reads                         | Sample     | Parser key  |
 |----------|------------------|-------------------------------------------------|------------|-------------|
@@ -22,7 +22,7 @@ sample produces an entry that balances to the cent against the report's own cont
 | IHG      | HotelKey         | **Trial Balance Report** (PDF, or the .eml it is attached to) | OKCMD | `HOTELKEY` |
 | IHG      | OPERA            | Daily **Trial Balance** (trial_balance)          | Candlewood Moore | `OPERA` |
 | Marriott | Agilysys Stay    | **Ledger Summary** grouped by ledger (City / Deposit / Guest) | OKCAW | `AGILYSYS`  |
-| Wyndham  | SynXis           | generic label+amount parser until a sample arrives | none    | `SYNXIS`    |
+| Wyndham  | SynXis Property Hub | **Transaction Totals Summary** + **Hotel Ledger Comparison Report** (pair, same folder) | 89051 | `SYNXIS` |
 
 Account codes in the mapping files are USALI-style placeholders until the Odoo chart of
 accounts is settled. The Hilton "Hotel Statistics" and HotelKey "Hotel Statistics" reports
@@ -171,6 +171,13 @@ Journal entry PEP-OKCON-2025-11-10  date=2025-11-10  journal=NA  company=Example
   payments show up under "AR Ledger Payments" they are booked to an AR receipts clearing
   account; confirm on a day with AR activity.
 
+- **SynXis Property Hub**: two reports per night. The Transaction Totals Summary gives revenue,
+  tax and payments per charge code (Base Type decides the section); the Hotel Ledger
+  Comparison gives each ledger's Difference. Give the parser either file and it merges the
+  companion from the same folder; without the ledger report it warns that the entry cannot
+  balance. DIRECT BILL is a transfer. The GL Account column is empty on the sample; if set in
+  SynXis it is captured for direct mapping.
+
 ## Scheduling
 
 The CLI is stateless, so any scheduler works: a cron job or Windows Task Scheduler running
@@ -204,7 +211,7 @@ pms_to_odoo/
     hotelkey.py        HotelKey Trial Balance Report
     opera.py           OPERA daily Trial Balance
     agilysys.py        Agilysys Stay Ledger Summary
-    brands.py          SynXis placeholder (generic table parser)
+    synxis.py          SynXis Transaction Totals Summary + Hotel Ledger Comparison (pair)
     generic_table.py   config-driven label+amount parser
     excel_template.py  GM spreadsheet reader
   invoices/            Claude extraction (schema-validated) and vendor bill creation

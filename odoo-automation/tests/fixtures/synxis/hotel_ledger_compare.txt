@@ -1,0 +1,122 @@
+===== PAGE 1 =====
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                Hotel    Ledger    Comparison       Report    for  : Yesterday     (11   Nov   2025)                                        Page 1 of 2                         
+                                                                                                                                       Currency  : USD                          
+                 Hotel: La Quinta Inn & Suites by Wyndham   Oklahoma   City Airport (89051)                                                                                     
+                                                                                                                                 12 Nov 2025 17:06 UTC                          
+                  Ledger                   Status                                    Nov 10, 2025              Nov  11, 2025                Difference                          
+                  Guest  Ledger                                                                                                                                                 
+                                           Reserved                                           0.00                      0.00                      0.00                          
+                                           In House                                       6,768.95                  8,943.61                  2,174.66                          
+                                                                                                                                                                                
+                                           Checked Out                                        0.00                      0.00                      0.00                          
+                                           Cancelled                                          0.00                      0.00                      0.00                          
+                                           No Show                                            0.00                      0.00                      0.00                          
+                                                                                                                                                                                
+                                           Ignored                                            0.00                      0.00                      0.00                          
+                                           Pre-Arrival                                        0.00                      0.00                      0.00                          
+                                           Other                                              0.00                      0.00                      0.00                          
+                                                                                                                                                                                
+                                           Departing                                          0.00                      0.00                      0.00                          
+                                           Overall Total                                 6,768.95                   8,943.61                  2,174.66                          
+                  Group  Ledger                                                                                                                                                 
+                                                                                                                                                                                
+                                           Confirmed                                     -1,078.50                  -1,078.50                     0.00                          
+                                           Tentative                                          0.00                      0.00                      0.00                          
+                                                                                                                                                                                
+                                           Cancelled                                          0.00                      0.00                      0.00                          
+                                           Checked In                                         0.00                      0.00                      0.00                          
+                                           Checked Out                                      305.11                    305.11                      0.00                          
+                                                                                                                                                                                
+                                           Closed                                         4,063.50                  4,063.50                      0.00                          
+                                           Hold                                               0.00                      0.00                      0.00                          
+                                                                                                                                                                                
+                                           Lost                                               0.00                      0.00                      0.00                          
+                                           Overall Total                                 3,290.11                   3,290.11                      0.00                          
+                  AR  Ledger                                                                                                                                                    
+                                                                                                                                                                                
+                                           Active                                         9,553.35                  9,813.41                    260.06                          
+                                           Inactive                                      27,146.63                 27,146.63                      0.00                          
+                                           Overall Total                                36,699.98                 36,960.04                    260.06                           
+                                                                                                                                                                                
+                  House  Ledger                                                                                                                                                 
+                                           Active                                             0.00                      0.00                      0.00                          
+                                           Inactive                                          -0.01                      -0.01                     0.00                          
+                                                                                                                                                                                
+                                           Overall Total                                     -0.01                     -0.01                      0.00                          
+                  Grand  Total                                                          46,759.03                 49,193.75                   2434.72                           
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+===== PAGE 2 =====
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                Hotel    Ledger    Comparison       Report    for  : Yesterday     (11   Nov   2025)                                        Page 2 of 2                         
+                                                                                                                                       Currency  : USD                          
+                 Hotel: La Quinta Inn & Suites by Wyndham   Oklahoma   City Airport (89051)                                                                                     
+                                                                                                                                 12 Nov 2025 17:06 UTC                          
+                  Report  Criteria:   Hotel:                       La Quinta Inn & Suites by Wyndham Oklahoma City Airport                                                      
+                                      Date Range:                  Yesterday                                                                                                    
+                                      Start Date:                  NOT SPECIFIED                                                                                                
+                                      User Name/Login:             REDACTED                                                                                                     
+                                      Report  Execution Time:      12 Nov 2025 17:06 UTC                                                                                        
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
