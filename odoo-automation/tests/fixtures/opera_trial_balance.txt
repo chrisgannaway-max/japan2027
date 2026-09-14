@@ -1,0 +1,122 @@
+===== PAGE 1 =====
+                                                                                                                                    
+                                             Candlewood   Suites Moore  Oklahoma                                         11-10-25   
+                                                                                                                                    
+                                                                                                                                    
+                                                         Trial Balance                                                      08:28   
+                                                                                                                                    
+       Daily Transactions                                                                                                           
+           Balance Brought Forward                                                                               24,592.19          
+           Revenue                                                                                                                  
+               1000               *Accommodation                                                                  1,546.10          
+               5500               Sundries                                                                            5.76          
+               5501               Sundries F&B                                                                        2.88          
+               5510               Pet Fees                                                                           75.00          
+           Revenue Total                                                                                          1,629.74          
+                                                                                                                                    
+           Non Revenue                                                                                                              
+               7100               State Tax - Room                                                                   63.60          
+               7101               Occupancy Tax - Room                                                               95.83          
+               7102               City Tax - Room                                                                    52.39          
+               7104               County Tax                                                                          3.57          
+           Non Revenue Total                                                                                        215.39          
+           Payment                                                                                                                  
+                                                                                                                                    
+               9002               Direct Billing/City Ledger                                                        - 64.06         
+               9003               American Express                                                                  - 83.14         
+               9004               Visa                                                                             - 938.70         
+               9005               MasterCard                                                                    - 12,291.60         
+           Payment Total                                                                                        - 13,377.50         
+           Transaction Total Today                                                                              - 11,532.37         
+                                                                                                                                    
+           Grand Total                                                                                           13,059.82          
+               AR Ledger Payments                                                                                     0.00          
+               Deposit Ledger Activity                                                                                0.00          
+           Balance Carried Forward                                                                               13,059.82          
+               Accruals Today                                                                                         0.00          
+                                                                                                                                    
+           Guest Ledger Balance                                                                                  13,059.82          
+       Guest Ledger                                                                                                                 
+           Balance Yesterday                                                                                     24,592.19          
+              Charges                                                                                             1,845.13          
+              Payments                                                                                          - 13,377.50         
+              Deposits Transfered at Check-In                                                                         0.00          
+           Balance Today                                                                                         13,059.82          
+                                                                                                                                    
+       AR Ledger                                                                                                                    
+           Balance Yesterday                                                                                     - 7,456.49         
+              Charges and Transfers                                                                                  64.06          
+              Payments                                                                                                0.00          
+           Balance Today                                                                                         - 7,392.43         
+                                                                                                                                    
+       Deposit Ledger                                                                                                               
+           Balance Yesterday                                                                                     - 2,345.84         
+              Deposits Transfered at Check-In                                                                         0.00          
+              Payments                                                                                                0.00          
+           Balance Today                                                                                         - 2,345.84         
+                                                                                                                                    
+ Filter Date: 11-09-25                                             Page 1 of 2                                        trial_balance 
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+===== PAGE 2 =====
+                                                                                                                                    
+                                             Candlewood   Suites Moore  Oklahoma                                         11-10-25   
+                                                                                                                                    
+                                                                                                                                    
+                                                         Trial Balance                                                      08:28   
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+       Package Ledger                                                                                                               
+           Balance Yesterday                                                                                          0.00          
+              Packages Created Today                                                                                  0.00          
+              Packages Consumed Today                                                                                 0.00          
+           Balance Actual                                                                                             0.00          
+              Accruals Future                                                                                         0.00          
+           Balance Today                                                                                              0.00          
+                                                                                                                                    
+       Hotel Balance                                                                                              3,321.55          
+           Guest Ledger is in balance                                                                                               
+           Package Ledger is in balance                                                                                             
+           Passerby Ledger is in balance                                                                                            
+           Deposit Ledger is in balance                                                                                             
+           A/R Ledger is in balance                                                                                                 
+           Cashiers are in balance                                                                                                  
+           There are no guests checked out with balance                                                                             
+           There are no invalid transactions                                                                                        
+           Effective Package Ledger is in balance                                                                                   
+           There are no guests checked out with deposit balance                                                                     
+           There are no package ledger with guest ledger imbalances                                                                 
+           No differences found in the guest ledger sections of the trial_balance report                                            
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+ Filter Date: 11-09-25                                             Page 2 of 2                                        trial_balance 
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    

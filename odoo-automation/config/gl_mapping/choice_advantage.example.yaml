@@ -1,15 +1,37 @@
-# GL mapping stub for choice_advantage.  Copy the rules from hilton_pep.example.yaml and adjust the
-# label patterns to the wording used on this PMS's night-audit report once samples arrive.
-property: CHANGE-ME
+# choiceADVANTAGE night-audit pack -> GL.  Built from the TXI47 (Comfort Inn Wichita Falls) sample.
+# Rules can match the transaction code printed on the report ("code: RM") or the label.
+property: TXI47
+company: Example Hotel LLC
 journal: NA
+analytic: TXI47
 tolerance: 0.01
+
 rules:
-  - {match: "^room revenue$", account: "4000", side: credit}
-  - {match: "tax", account: "2200", side: credit}
-  - {match: "^cash", account: "1010", side: debit}
-  - {match: "^(visa|mastercard|amex|discover)", account: "1120", side: debit}
-  - {match: "^(direct bill|city ledger)", account: "1200", side: debit}
-  - {match: "^guest ledger", account: "1210", side: signed}
-ignore:
-  - "^(occupancy|adr|revpar|rooms? (sold|available))"
-  - "^total"
+  # revenue
+  - {code: RM,   account: "4000"}                 # Room Charge
+  - {code: NS,   account: "4010"}                 # No Show Charge
+  - {code: CXL,  account: "4010"}                 # Cancellation / Early Check-out
+  - {code: CRIB, account: "4020"}                 # Crib Charge
+  - {code: DAMG, account: "4300"}                 # Damages / Missing items
+  - {match: "revenue|charge|fee", section: revenue, account: "4300"}
+  # taxes
+  - {code: T1, account: "2200"}                   # State Tax
+  - {code: T2, account: "2200"}                   # City / County Tax
+  - {match: "tax", section: tax, account: "2200"}
+  # settlements
+  - {code: CA, account: "1010"}                   # Cash
+  - {code: CK, account: "1010"}                   # Check
+  - {code: GR, account: "1010"}                   # Guest Refund (negative payment)
+  - {code: AX, account: "1121"}                   # American Express
+  - {code: DS, account: "1122"}                   # Discover
+  - {code: MC, account: "1120"}                   # Master Card
+  - {code: VI, account: "1120"}                   # Visa
+  - {code: POSVI, account: "1120"}                # POS Visa/MC
+  - {code: FC, account: "1140"}                   # Franchise Credit (due from Choice)
+  - {match: "^vendor direct pay", account: "1150"}  # Choice vendor direct pay EFT / fee
+  # ledger movements
+  - {match: "^guest ledger net change",            account: "1210"}
+  - {match: "^ar ledger net change",               account: "1200"}
+  - {match: "^advance deposit ledger net change",  account: "2300"}
+# Direct Bill (DB/DR) and Applied Credit / Credit Invoice (AC/CI) are internal ledger
+# transfers: the parser tags them "transfer" and they are not booked.

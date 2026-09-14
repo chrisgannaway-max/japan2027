@@ -1,15 +1,31 @@
-# GL mapping stub for ihg_opera.  Copy the rules from hilton_pep.example.yaml and adjust the
-# label patterns to the wording used on this PMS's night-audit report once samples arrive.
-property: CHANGE-ME
+# OPERA daily "Trial Balance" -> GL.  Built from the Candlewood Suites Moore sample.
+# OPERA prints a numeric transaction code per line; rules match on code where possible.
+property: CANDLEWOOD-MOORE
+company: Example Hotel LLC
 journal: NA
+analytic: CANDLEWOOD-MOORE
 tolerance: 0.01
+
 rules:
-  - {match: "^room revenue$", account: "4000", side: credit}
-  - {match: "tax", account: "2200", side: credit}
-  - {match: "^cash", account: "1010", side: debit}
-  - {match: "^(visa|mastercard|amex|discover)", account: "1120", side: debit}
-  - {match: "^(direct bill|city ledger)", account: "1200", side: debit}
-  - {match: "^guest ledger", account: "1210", side: signed}
-ignore:
-  - "^(occupancy|adr|revpar|rooms? (sold|available))"
-  - "^total"
+  # revenue
+  - {code: "1000", account: "4000"}                 # Accommodation
+  - {code: "5500", account: "4120"}                 # Sundries
+  - {code: "5501", account: "4120"}                 # Sundries F&B
+  - {code: "5510", account: "4020"}                 # Pet Fees
+  - {match: "accommodation|room", section: revenue, account: "4000"}
+  - {match: ".*", section: revenue, account: "4300"}   # any other revenue code -> other revenue (review!)
+  # taxes
+  - {match: "tax", section: tax, account: "2200"}
+  # settlements (positive = received)
+  - {code: "9003", account: "1121"}                 # American Express
+  - {code: "9004", account: "1120"}                 # Visa
+  - {code: "9005", account: "1120"}                 # MasterCard
+  - {match: "cash|check", section: settlement, account: "1010"}
+  - {match: "^ar ledger payments", account: "1160"} # AR receipts clearing (allocate to bank on deposit)
+  # ledger movements
+  - {match: "^guest ledger net change",   account: "1210"}
+  - {match: "^ar ledger net change",      account: "1200"}
+  - {match: "^deposit ledger net change", account: "2300"}
+  - {match: "^package ledger net change", account: "2310"}
+# "Direct Billing/City Ledger" (9002) is a transfer to the AR ledger and is not booked;
+# the AR Ledger Net Change line carries it.

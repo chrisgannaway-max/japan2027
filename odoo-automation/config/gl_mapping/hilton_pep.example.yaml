@@ -1,48 +1,56 @@
-# GL mapping for a Hilton (PEP) property.
-# Account codes below follow the USALI-style numbering commonly used in hotel charts;
-# REPLACE them with the codes from `python -m pms_to_odoo accounts`.
-property: HGI-EXAMPLE
+# Hilton PEP "Final Audit" -> GL.  Built from the OKCON (Embassy Suites OKC Northwest) sample.
+# Account codes are placeholders in a USALI-style numbering; replace them with the codes
+# from `python -m pms_to_odoo accounts` once the Odoo chart of accounts is settled.
+property: OKCON
 company: Example Hotel LLC
-journal: NA                 # create a "Night Audit" miscellaneous journal (code NA) in Odoo
-analytic: HGI-EXAMPLE       # optional analytic account per property
+journal: NA
+analytic: OKCON
 tolerance: 0.01
-# suspense_account: "9999"  # uncomment to book unmapped lines to suspense instead of failing
 
 rules:
-  # ---- revenue (credits) ----
-  - {match: "^room revenue$",                     account: "4000", side: credit}
-  - {match: "^(no[- ]?show|cancellation) (revenue|fee)", account: "4010", side: credit}
-  - {match: "^(pet|late check.?out|early (check.?in|departure)) fee", account: "4020", side: credit}
-  - {match: "^(f&b|food|beverage|breakfast|pantry|market|sundry) (revenue|sales)?", account: "4100", side: credit}
-  - {match: "^(meeting|banquet|room rental)",      account: "4200", side: credit}
-  - {match: "^(parking|laundry|valet|vending|telephone|movie|other) (revenue)?", account: "4300", side: credit}
-  - {match: "^(honors|reward) (points )?(reimbursement|revenue)", account: "4400", side: credit}
-  - {match: "^(paid.?outs?|guest refunds?)$",     account: "4900", side: credit}   # negative on report -> debit
-  - {match: "^(adjustments?|allowances?|rebates?)", account: "4950", side: credit}
+  # ---------------- ledger movements first (signed: + = debit) ----------------
+  - {match: "^direct bill net change",     section: ledger, account: "1200"}   # AR / city ledger
+  - {match: "^advance deposit net change", section: ledger, account: "2300"}   # advance deposits (liability)
+  - {match: "net change$",                 section: ledger, account: "1210"}   # in house / house account / closed folio / group master -> guest ledger
+  # ---------------- revenue (credit) ----------------
+  - {match: "^guest room( honors)?$",                                   account: "4000"}   # rooms
+  - {match: "^(extra adult|room upgrade|estandby|room revenue adjustment|room allowance)", account: "4000"}
+  - {match: "no show|late cancel|cancellation charge|prepaid early checkout|guaranteed no show", account: "4010"}   # attrition / no-show
+  - {match: "^add-on",                                                  account: "4020"}   # add-ons (early arrival, points, pet...)
+  - {match: "^(pet fee|service animal|smoking policy fee|cleaning fee|late (checkout fee|departure)|early arrival|advance purchase change fee)", account: "4020"}
+  - {match: "^banquets? .*(tips)$",                                     account: "2400"}   # gratuities payable (liability)
+  - {match: "^(the local|in rm dining) .*tips$|^tips$",                 account: "2400"}
+  - {match: "^banquets? .*svc chg",                                     account: "4230"}   # banquet service charge
+  - {match: "^banquets? .*(room rent)",                                 account: "4220"}   # meeting room rental
+  - {match: "^banquets? .*(av|misc)( allow| disc)?$",                   account: "4240"}   # banquet AV / other
+  - {match: "^banquets? .*(beer|bev|liquor|wine)",                      account: "4210"}   # banquet beverage
+  - {match: "^banquets?",                                               account: "4200"}   # banquet food
+  - {match: "^in rm dining .*(beer|bev|liquor|wine)",                   account: "4110"}   # room service beverage
+  - {match: "^in rm dining .*svc chg",                                  account: "4130"}
+  - {match: "^in rm dining",                                            account: "4100"}   # room service food
+  - {match: "^the local .*(beer|bev|liquor|wine)",                      account: "4110"}   # outlet beverage
+  - {match: "^the local .*svc chg",                                     account: "4130"}   # outlet service charge
+  - {match: "^the local",                                               account: "4100"}   # outlet food
+  - {match: "^the market|^breakfast$|^manager reception",               account: "4120"}   # market / breakfast
+  - {match: "^(add-on|allowance|100%? g|advance deposit|advance purchase|misc revenue non-taxable allow)", section: revenue, account: "4950"}  # allowances
+  - {match: "allow(ance)?$|disc(ount)?$",                               section: revenue, account: "4950"}
+  - {match: "^(telephone|premium internet|internet access)",            account: "4300"}   # telecom
+  - {match: "^(misc revenue|copies|fax|postage|porterage|commission revenue|valet laundry|guest certificate|charge-backs|balance forward|balance transfer)", account: "4300"}
+  # ---------------- taxes (credit to liability) ----------------
+  - {match: "^alcohol tax",                                             account: "2210"}
+  - {match: "^(city|occupancy|sales) tax",                              account: "2200"}
+  # ---------------- settlements (debit) ----------------
+  - {match: "^(pos )?cash$|^check$",                                    account: "1010"}   # cash / checks to deposit
+  - {match: "^(pos )?amex",                                             account: "1121"}   # Amex clearing
+  - {match: "^(pos )?(master(card)?|visa)$",                            account: "1120"}   # Visa/MC clearing
+  - {match: "^(pos )?(discover|diners|jcb)",                            account: "1122"}
+  - {match: "hilton advance purchase|honors settlement|pay with honors|pos hilton voucher", account: "1140"}  # due from Hilton
+  - {match: "^bill to company",                                         account: "1200", partner: "{label}"}  # direct bill -> AR (see note)
+  - {match: "^(balance forward|guarantee to hotel)",                    account: "1150"}
 
-  # ---- taxes (credits to liability) ----
-  - {match: "^(state|county|city|local)? ?(sales|occupancy|lodging|hotel|room|tourism|bed) tax", account: "2200", side: credit}
-  - {match: "^tax(es)?$",                          account: "2200", side: credit}
+ignore: []   # report totals are kept as control statistics by the parser, never as lines
 
-  # ---- settlements (debits) ----
-  - {match: "^cash( (received|payments?))?$",      account: "1010", side: debit}
-  - {match: "^check(s)?$",                         account: "1010", side: debit}
-  - {match: "^(visa|mastercard|visa ?/ ?mc|master ?card)", account: "1120", side: debit}
-  - {match: "^(amex|american express)",            account: "1121", side: debit}
-  - {match: "^(discover|diners|jcb|union ?pay)",   account: "1122", side: debit}
-  - {match: "^(direct bill|city ledger|a/?r transfers?)", account: "1200", side: debit, partner: "{label}"}
-  - {match: "^(expedia|booking\\.com|ota|virtual card|travel agent)", account: "1130", side: debit}
-
-  # ---- ledger movements (signed: increase in receivable = debit) ----
-  - {match: "^guest ledger (net )?change",         account: "1210", side: signed, section: ""}
-  - {match: "^(advance|deposit) ledger (net )?change", account: "2300", side: signed}
-  - {match: "^(gift card|voucher) (redemption|liability)", account: "2310", side: signed}
-
-ignore:
-  - "^occupancy"
-  - "^adr$"
-  - "^revpar"
-  - "^rooms? (sold|available|occupied|out of order|comp)"
-  - "^(arrivals?|departures?|stay.?overs?|no.?shows?)$"
-  - "^total( revenue| payments| taxes)?$"        # totals are recomputed, not booked
-  - "^(opening|closing) balance"
+# NOTE on BILL TO COMPANY: PEP lists direct-bill transfers under Payment Information and
+# also reports the Direct Bill ledger change. On the sample day both were zero. If a day
+# with direct-bill activity fails the balance check, change the BILL TO COMPANY rule to
+# an ignore pattern (the ledger line then carries the AR movement) - or the reverse.

@@ -21,9 +21,9 @@ def test_find_date_prefers_business_date_label():
     assert find_date(text) == date(2026, 9, 13)
 
 
-def test_pep_sample_parses_sections_and_today_column():
-    report = get_parser("PEP").parse(FIXTURES / "pep_daily_sample.txt", "HGI-EXAMPLE")
-    assert report.pms == "PEP"
+def test_generic_sample_parses_sections_and_today_column():
+    report = get_parser("GENERIC").parse(FIXTURES / "generic_daily_sample.txt", "HGI-EXAMPLE")
+    assert report.pms == "GENERIC"
     assert report.business_date == date(2026, 9, 13)
     by_label = {l.label: l for l in report.lines}
     assert by_label["Room Revenue"].amount == Decimal("12480.00")

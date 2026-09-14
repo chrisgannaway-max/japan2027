@@ -1,15 +1,43 @@
-# GL mapping stub for ihg_hotelkey.  Copy the rules from hilton_pep.example.yaml and adjust the
-# label patterns to the wording used on this PMS's night-audit report once samples arrive.
-property: CHANGE-ME
+# HotelKey "Trial Balance Report" -> GL.  Built from the OKCMD (Holiday Inn Express OKC Airport) sample.
+# The report prints a transaction code per account; rules match on code where it is
+# unique, otherwise on the account name (card types all share code FPCC).
+property: OKCMD
+company: Example Hotel LLC
 journal: NA
+analytic: OKCMD
 tolerance: 0.01
+
 rules:
-  - {match: "^room revenue$", account: "4000", side: credit}
-  - {match: "tax", account: "2200", side: credit}
-  - {match: "^cash", account: "1010", side: debit}
-  - {match: "^(visa|mastercard|amex|discover)", account: "1120", side: debit}
-  - {match: "^(direct bill|city ledger)", account: "1200", side: debit}
-  - {match: "^guest ledger", account: "1210", side: signed}
-ignore:
-  - "^(occupancy|adr|revpar|rooms? (sold|available))"
-  - "^total"
+  # revenue (INCOME rows)
+  - {code: RR,   account: "4000"}                                  # GUEST ROOM
+  - {code: MRR,  account: "4000"}                                  # MANUAL GUEST ROOM
+  - {code: ADRR, account: "4000"}                                  # EXTRA ADULT
+  - {code: RRA,  account: "4000"}                                  # ROOM RENT ADJUSTMENT
+  - {code: RTC,  account: "4000"}                                  # ROOM TYPE CHANGE
+  - {code: "1000", account: "4000"}                                # Accommodation
+  - {match: "no show|late cancel|cancellation|prepaid", section: revenue, account: "4010"}
+  - {match: "pet|cleaning fee|damage fee|early check in|late check out|service charge|gratuity", section: revenue, account: "4020"}
+  - {match: "^sundry|restaurant|breakfast", section: revenue, account: "4120"}   # sundry / F&B
+  - {match: "laundry|dry cleaning|porterage|phone", section: revenue, account: "4300"}
+  - {match: "function|meeting|room rental", section: revenue, account: "4220"}
+  - {match: "loyalty reward|pwp adjustment|ihg one rewards club|chargeback|returned check|bad debt", section: revenue, account: "4950"}
+  - {match: "^a_r (cash|check|finance charge)", section: revenue, account: "1200"}   # AR postings recorded as INCOME rows
+  - {match: "ta commission", section: revenue, account: "6400"}                    # travel agent commissions
+  - {match: "balance forward|shift drop|difference drop|deposit transfer|other revenue", section: revenue, account: "4300"}
+  # taxes (LIABILITY rows)
+  - {match: "^(city|state|sales|occupancy|sundry) tax", account: "2200"}
+  # settlements (ASSET rows, sign already normalised: positive = received)
+  - {match: "^cash$",                    account: "1010"}
+  - {match: "^check$",                   account: "1010"}
+  - {match: "^amex$",                    account: "1121"}
+  - {match: "^(visa|master|maestro|other|business edge( pay)?|interac)$", account: "1120"}
+  - {match: "^(discover|diners|jcb|china union pay)$", account: "1122"}
+  - {match: "ihg one rewards reimbursement|ihg advices|loyalty reward", section: settlement, account: "1140"}  # due from IHG
+  - {match: "clc checkinn|t-chek",      account: "1130"}                            # CLC lodging cards
+  - {match: "bank fees|credit card commission|bank transfer|ta commissions|bad debt|balance forward", section: settlement, account: "1150"}
+  # ledger movements (the "(Offset)" asset rows)
+  - {match: "in_house\\(offset\\)|closed_folio|house_account", account: "1210"}     # guest ledger
+  - {match: "^ar\\(offset\\)",                                account: "1200"}     # AR / direct bill
+  - {match: "advance_deposit",                                account: "2300"}     # deposits
+  # expense
+  - {code: GPO, account: "6900"}                                   # Guest Paid Out

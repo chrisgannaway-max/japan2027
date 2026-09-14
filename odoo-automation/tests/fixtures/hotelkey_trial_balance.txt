@@ -1,0 +1,296 @@
+===== PAGE 1 =====
+                                                                                                                                    
+                                                                                                                                    
+                       Holiday  Inn Express  and  Suites Oklahoma   City             Date Range:  Sep  30, 2025 - Sep 30, 2025      
+                       Airport                                                                  Report Run  Date:  Oct 01 2025      
+                       OKCMD                                                                   Report  Run Time:  10:44:17 AM       
+                                                                                                       User: REDACTED               
+                                                                                                                                    
+                                                                                                                                    
+                                                   Trial  Balance      Report                                                       
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+     Trial Balance  Report                                                                                                          
+                                      Transaction      Opening                                                       Closing        
+          Type       Account Name                                       Debit          Credit       Net Change                      
+                                         Code          Balance                                                       Balance        
+         ASSET         Bank Fees          BF           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         ASSET       TA Commissions     TACOM          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Loyalty Reward                                                                                                 
+         ASSET           Manual          9282          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+                     Loyalty Reward                                                                                                 
+         ASSET                           9280          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         ASSET        Bank Transfer      BACS          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                        IHG One                                                                                                     
+         ASSET          Rewards          IHG1       -USD10,212.90     USD0.00         USD0.00        USD0.00      -USD10,212.90     
+                     Reimbursement                                                                                                  
+         ASSET           CASH            CASH        -USD1,829.51     USD20.00       USD61.00       -USD41.00     -USD1,870.51      
+         ASSET         IHG Advices       IHG           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      CLC CheckINN                                                                                                  
+         ASSET                           CLC           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      T-Chek Cards                                                                                                  
+                       Credit Card                                                                                                  
+         ASSET                          CCCOM          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Commission                                                                                                   
+                        Balance                                                                                                     
+         ASSET          Forward          BFL           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                        Payments                                                                                                    
+         ASSET          CHECK           CHCK        -USD49,701.85     USD0.00         USD0.00        USD0.00      -USD49,701.85     
+                      Bad Debt Write                                                                                                
+         ASSET                           BAD           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                          Off                                                                                                       
+                       BALANCE                                                                                                      
+         ASSET         FORWARD           BFP           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       PAYMENT                                                                                                      
+                        Balance                                                                                                     
+         ASSET          Forward          BFD           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Advance Deposit                                                                                                
+         ASSET       Loyalty Reward      LOY           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Loyalty Reward                                                                                                 
+         ASSET        Reconciliation     9291          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         ASSET            VISA           FPCC       -USD288,448.69    USD0.00       USD4,342.44    -USD4,342.44   -USD292,791.13    
+         ASSET          OTHER            FPCC         -USD103.49      USD0.00         USD0.00        USD0.00       -USD103.49       
+         ASSET          MASTER           FPCC       -USD184,449.26    USD0.00       USD1,238.65    -USD1,238.65   -USD185,687.91    
+         ASSET         MAESTRO           FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       BUSINESS                                                                                                     
+         ASSET                           FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         EDGE                                                                                                       
+                       BUSINESS                                                                                                     
+         ASSET                           FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       EDGE  PAY                                                                                                    
+         ASSET           AMEX            FPCC       -USD76,336.33    USD132.01       USD111.99       USD20.02     -USD76,316.31     
+                      CHINA UNION                                                                                                   
+         ASSET                           FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                          PAY                                                                                                       
+         ASSET          DINERS           FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         ASSET         DISCOVER          FPCC       -USD12,490.99     USD0.00         USD0.00        USD0.00      -USD12,490.99     
+         ASSET          INTERAC          FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+===== PAGE 2 =====
+                                                                                                                                    
+                                                                                                                                    
+                                      Transaction      Opening                                                       Closing        
+          Type       Account Name                                       Debit          Credit       Net Change                      
+                                         Code          Balance                                                       Balance        
+         ASSET            JCB            FPCC          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     reservation_adva                                                                                               
+         ASSET       nce_deposit(Offs                  USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                           et)                                                                                                      
+                     group_advance_                                                                                                 
+         ASSET                                         USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      deposit(Offset)                                                                                               
+                     reservation_in_h                                                                                               
+         ASSET                                      -USD12,602.66     USD0.00       USD1,235.69    -USD1,235.69   -USD13,838.35     
+                       ouse(Offset)                                                                                                 
+                     group_in_house(                                                                                                
+         ASSET                                      -USD23,561.61     USD0.00       USD3,605.91    -USD3,605.91   -USD27,167.52     
+                         Offset)                                                                                                    
+                     closed_folio(Offs                                                                                              
+         ASSET                                        -USD512.31      USD0.00        USD551.65      -USD551.65    -USD1,063.96      
+                           et)                                                                                                      
+                     house_account(                                                                                                 
+         ASSET                                         USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         Offset)                                                                                                    
+         ASSET          ar(Offset)                  -USD13,170.28    USD419.64        USD0.00       USD419.64     -USD12,750.64     
+        Sub Total                                                    USD571.65     USD11,147.33    -USD10,575.68                    
+        LIABILITY       City Tax          CT         USD22,454.44    USD371.93        USD6.41       USD365.52     USD22,819.96      
+        LIABILITY       State Tax         ST         USD24,392.32    USD402.63        USD6.12       USD396.51     USD24,788.83      
+        LIABILITY       Sales Tax        SEL          USD26.15        USD0.00         USD0.00        USD0.00        USD26.15        
+        LIABILITY    Occupancy Tax        OT         USD50,185.12    USD827.31       USD12.58       USD814.73     USD50,999.85      
+        LIABILITY      Sundry Tax        SUNT          USD0.17        USD0.00         USD0.00        USD0.00         USD0.17        
+        Sub Total                                                    USD1,601.87     USD25.11      USD1,576.76                      
+                     Loyalty Reward                                                                                                 
+         INCOME         Revenue          7441          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME      PWP Adjustment      7473          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      LATE CANCEL                                                                                                   
+         INCOME          ROOM           CVRR         USD1,209.89      USD0.00         USD0.00        USD0.00       USD1,209.89      
+                       REVENUE                                                                                                      
+                        MANUAL                                                                                                      
+         INCOME                          MRR           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      GUEST ROOM                                                                                                    
+                     Loyalty Reward                                                                                                 
+         INCOME                          7477          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME        Chargeback        8022          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME          Phone           PHN           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME      PWP Adjustment      7472          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Loyalty Reward                                                                                                 
+         INCOME                          7443          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+                     Loyalty Reward                                                                                                 
+         INCOME                          7448          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+                       Restaurant                                                                                                   
+         INCOME         Outlet 1         2000          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Breakfast - Food                                                                                               
+         INCOME      EXTRA  ADULT       ADRR           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME      Service Charge      1309          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME      PWP Adjustment      7480          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Loyalty Reward                                                                                                 
+         INCOME                          7444          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME        CM Pet Stay       20645         USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME       GUEST ROOM          RR        USD541,291.16    USD8,943.24      USD0.00      USD8,943.24    USD550,234.40     
+         INCOME         A_R Cash         8801          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Cancellation                                                                                                 
+         INCOME                          1308          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         Charge                                                                                                     
+         INCOME      Sundry - Food 1     5900        USD3,072.51      USD74.88       USD19.20        USD55.68      USD3,128.19      
+                     Room  - Gratuity                                                                                               
+         INCOME                          1315          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                          Tips                                                                                                      
+                        IHG One                                                                                                     
+         INCOME       Rewards Club       8998          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Reimbursement                                                                                                  
+===== PAGE 3 =====
+                                                                                                                                    
+                                                                                                                                    
+                                      Transaction      Opening                                                       Closing        
+          Type       Account Name                                       Debit          Credit       Net Change                      
+                                         Code          Balance                                                       Balance        
+         INCOME       Other Revenue      1314          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME        A_R Check         8802          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME       Guest Laundry      5100         USD393.92       USD0.00         USD0.00        USD0.00        USD393.92       
+         INCOME      Returned Check      8021          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       NO SHOW                                                                                                      
+         INCOME          ROOM           NSRR           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       REVENUE                                                                                                      
+                       NO SHOW                                                                                                      
+         INCOME          ROOM            NSFC        USD2,777.42      USD0.00         USD0.00        USD0.00       USD2,777.42      
+                       REVENUE                                                                                                      
+                      LATE CHECK                                                                                                    
+         INCOME                          LCOF          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                        OUT FEE                                                                                                     
+                     TA Commission                                                                                                  
+         INCOME                          8804          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                        Inclusive                                                                                                   
+                     Function_Meetin                                                                                                
+                       g Afternoon                                                                                                  
+         INCOME       Tea - Function     4056         USD250.00       USD0.00         USD0.00        USD0.00        USD250.00       
+                      Room Rental _                                                                                                 
+                     Setup Revenue                                                                                                  
+                     Guest Laundry -                                                                                                
+         INCOME                          5101         USD127.60       USD0.00         USD0.00        USD0.00        USD127.60       
+                      Dry Cleaning                                                                                                  
+                       Shift Drop -                                                                                                 
+         INCOME                          8995          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         Check                                                                                                      
+         INCOME      Sundry - Other 1    5930          USD1.92        USD0.00         USD0.00        USD0.00         USD1.92        
+                      Extra Cleaning                                                                                                
+         INCOME                          1311         USD250.00       USD0.00         USD0.00        USD0.00        USD250.00       
+                          Fee                                                                                                       
+                     Loyalty Reward                                                                                                 
+         INCOME                          7478          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+                     PREPAID  LATE                                                                                                  
+                        CANCEL                                                                                                      
+         INCOME                         CPPRR          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         ROOM                                                                                                       
+                       REVENUE                                                                                                      
+         INCOME      Difference Drop     8996          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Pet Policy -                                                                                                 
+         INCOME                          20647         USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      Service Animal                                                                                                
+                     Loyalty Reward                                                                                                 
+         INCOME                          7442          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+                      A_R Finance                                                                                                   
+         INCOME                          8803          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         Charge                                                                                                     
+         INCOME      PWP Adjustment      7474          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME       Damage  Fee        1321          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       EXTRA NO                                                                                                     
+         INCOME       SHOW  ROOM        ENSRR          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       REVENUE                                                                                                      
+         INCOME      Shift Drop - Cash   8994          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME      PWP Adjustment      7482          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Loyalty Reward                                                                                                 
+         INCOME                          7445          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME         Porterage        5810          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Deposit Transfer                                                                                               
+         INCOME                          8997          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       at Check-In                                                                                                  
+                        Balance                                                                                                     
+         INCOME                          8851        USD1,002.00      USD0.00         USD0.00        USD0.00       USD1,002.00      
+                     Forward Charge                                                                                                 
+                     EARLY  CHECK                                                                                                   
+         INCOME                          ECIF          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         IN FEE                                                                                                     
+         INCOME      PWP Adjustment      7476          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      ROOM  RENT                                                                                                    
+         INCOME                          RRA           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      ADJUSTMENT                                                                                                    
+                     Loyalty Reward                                                                                                 
+         INCOME                          7479          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+===== PAGE 4 =====
+                                                                                                                                    
+                                                                                                                                    
+                                      Transaction      Opening                                                       Closing        
+          Type       Account Name                                       Debit          Credit       Net Change                      
+                                         Code          Balance                                                       Balance        
+         INCOME      Manual No Show      1307          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     Loyalty Reward                                                                                                 
+         INCOME                          7449          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME      PWP Adjustment      7481          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                      ROOM  TYPE                                                                                                    
+         INCOME                          RTC           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                        CHANGE                                                                                                      
+                        Balance                                                                                                     
+         INCOME       Forward With       8850          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                         Taxes                                                                                                      
+                        PREPAID                                                                                                     
+         INCOME          EARLY           PEC           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       CHECKOUT                                                                                                     
+                     Loyalty Reward                                                                                                 
+         INCOME                          7446          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME        Pet- Policy       1313          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+         INCOME      PWP Adjustment      7475          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                     TA Commission                                                                                                  
+         INCOME                          8805          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                        Exclusive                                                                                                   
+                     Loyalty Reward                                                                                                 
+         INCOME                          7447          USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+                       Adjustment                                                                                                   
+         INCOME      Accommodation       1000        USD4,634.57      USD0.00         USD0.00        USD0.00       USD4,634.57      
+        Sub Total                                                    USD9,018.12     USD19.20      USD8,998.92                      
+        EXPENSE       Guest Paid Out     GPO           USD0.00        USD0.00         USD0.00        USD0.00         USD0.00        
+        Sub Total                                                     USD0.00         USD0.00        USD0.00                        
+          Totals                                                    USD11,191.64   USD11,191.64      USD0.00                        
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    
+                                                                                                                                    

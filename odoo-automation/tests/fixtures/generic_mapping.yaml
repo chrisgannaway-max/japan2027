@@ -1,4 +1,4 @@
-property: HGI-EXAMPLE
+property: HGI-EXAMPLE   # synthetic generic-format fixture
 company: Example Hotel LLC
 journal: NA
 analytic: HGI-EXAMPLE

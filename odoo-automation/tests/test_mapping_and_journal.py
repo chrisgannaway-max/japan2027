@@ -14,17 +14,17 @@ from pms_to_odoo.parsers import get_parser
 
 @pytest.fixture
 def report():
-    return get_parser("PEP").parse(FIXTURES / "pep_daily_sample.txt", "HGI-EXAMPLE")
+    return get_parser("GENERIC").parse(FIXTURES / "generic_daily_sample.txt", "HGI-EXAMPLE")
 
 
 @pytest.fixture
 def mapping():
-    return GLMapping.load(FIXTURES / "pep_mapping.yaml")
+    return GLMapping.load(FIXTURES / "generic_mapping.yaml")
 
 
 def test_entry_balances_and_has_expected_sides(report, mapping):
     entry = mapping.build_entry(report)
-    assert entry.ref == "PEP-HGI-EXAMPLE-2026-09-13"
+    assert entry.ref == "GENERIC-HGI-EXAMPLE-2026-09-13"
     assert entry.imbalance == 0
     # credits: gross revenue 13,302.75 + tax 1,403.16 = 14,705.91 ; debits: payments 14,243.91 + paid outs 40 + adjustments 89 + ledger 333
     assert entry.total_credit == Decimal("14705.91")
