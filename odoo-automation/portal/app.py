@@ -30,8 +30,9 @@ from pms_to_odoo.journal import format_entry, post_entry
 from pms_to_odoo.odoo_client import OdooClient, OdooError, OdooSettings
 from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, process_file
 
-from .auth import SessionSigner, User, UserStore
+from .auth import SessionSigner, User, UserStore, hash_password
 from .db import Database
+from .store import ConfigStore, PROPERTY_COLUMNS, store_mode
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -51,12 +52,22 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 
 class State:
     def __init__(self):
-        self.props = load_properties(CONFIG)
-        users_path = USERS if USERS.exists() else USERS.with_name("users.example.yaml")
-        self.users = UserStore(users_path)
+        self.mode = store_mode()                                   # "yaml" | "db"
+        self.delivery = os.environ.get("DELIVERY_MODE", "download").lower()   # "download" | "odoo"
         self.db = Database(DATA / "portal.db")
+        self.store = ConfigStore(DATA / "portal.db", DATA) if self.mode == "db" else None
         self.signer = SessionSigner()
         self.odoo_enabled = bool(os.environ.get("ODOO_URL") and os.environ.get("ODOO_API_KEY"))
+        self.reload_config()
+
+    def reload_config(self) -> None:
+        if self.store is not None:
+            self.props = self.store.properties()
+            self.users = UserStore(records=self.store.users())
+        else:
+            self.props = load_properties(CONFIG)
+            users_path = USERS if USERS.exists() else USERS.with_name("users.example.yaml")
+            self.users = UserStore(users_path)
 
 
 state = State()
@@ -90,6 +101,8 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx.setdefault("user", current_user(request))
     ctx.setdefault("odoo_enabled", state.odoo_enabled)
     ctx.setdefault("invoice_reader", reader_in_use())
+    ctx.setdefault("store_mode", state.mode)
+    ctx.setdefault("delivery", state.delivery)
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -230,7 +243,7 @@ def reprocess(run_id: int, user: User = Depends(require_admin)):
     r = state.db.get_run(run_id)
     if not r:
         raise HTTPException(404)
-    state.props = load_properties(CONFIG)             # pick up mapping edits
+    state.reload_config()                            # pick up mapping edits
     res = process_file(Path(r["stored_path"]), state.props, r["property_code"] or None)
     new_id = state.db.add_run(uploaded_by=user.username, property_code=res.property_code,
                               business_date=res.business_date.isoformat() if res.business_date else None,
@@ -445,3 +458,94 @@ def invoice_post(inv_id: int, user: User = Depends(require_admin)):
                                 odoo_move_id=res.move_id)
         state.db.remember_account(inv["vendor_name"], inv["account_code"])
     return RedirectResponse(f"/invoices/{inv_id}", status_code=303)
+
+
+# ------------------------------------------------------------------ dashboard: send a whole day to Odoo
+@app.post("/export/{day}/post")
+def post_day(day: str, post_now: str = Form("no"), user: User = Depends(require_admin)):
+    if not state.odoo_enabled:
+        raise HTTPException(400, "Odoo connection not configured (ODOO_URL / ODOO_API_KEY)")
+    client = OdooClient.connect(OdooSettings.from_env())
+    for r in state.db.runs_for_date(day):
+        if r["status"] != "ok" or r["posted_at"]:
+            continue
+        res = RunResult.from_json(r["result_json"])
+        try:
+            result = post_entry(res.entry, client, post=(post_now == "yes"))
+        except OdooError as e:
+            raise HTTPException(502, f"Odoo error on {res.ref}: {e}") from e
+        state.db.mark(r["id"], posted_at=datetime.now().isoformat(timespec="seconds"), odoo_move_id=result.move_id)
+    return RedirectResponse(f"/?day={day}", status_code=303)
+
+
+# ------------------------------------------------------------------ admin: configuration (db store)
+def require_db_store():
+    if state.store is None:
+        raise HTTPException(400, "Configuration is read from files (PORTAL_STORE=yaml). Set PORTAL_STORE=db to edit it here.")
+    return state.store
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_home(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = ""):
+    ctx = dict(msg=msg, err=err, config_path=str(CONFIG), users_path=str(USERS))
+    if state.store is not None:
+        ctx["properties"] = [state.store.get_property(c) | {"enabled": state.store.get_property(c)["enabled"]} for c in
+                             state.store.properties(include_disabled=True)]
+        ctx["users_list"] = state.store.all_users()
+    else:
+        ctx["properties"] = [{k: p.get(k, "") for k in PROPERTY_COLUMNS if k != "mapping_yaml"} | {"enabled": 1} for p in state.props.values()]
+        ctx["users_list"] = [{"username": u.username, "role": u.role, "properties": ",".join(u.properties), "enabled": 1}
+                             for u in state.users.users.values()]
+    return render(request, "admin.html", **ctx)
+
+
+@app.post("/admin/import-yaml")
+def admin_import(user: User = Depends(require_admin), overwrite: str = Form("no")):
+    store = require_db_store()
+    counts = store.import_from_yaml(CONFIG, USERS, overwrite=(overwrite == "yes"))
+    state.reload_config()
+    return RedirectResponse(f"/admin?msg=Imported+{counts['properties']}+properties+and+{counts['users']}+users", status_code=303)
+
+
+@app.get("/admin/properties/{code}", response_class=HTMLResponse)
+def admin_property_form(request: Request, code: str, user: User = Depends(require_admin)):
+    store = require_db_store()
+    prop = store.get_property(code) if code != "new" else {k: "" for k in PROPERTY_COLUMNS} | {"enabled": 1}
+    if prop is None:
+        raise HTTPException(404)
+    return render(request, "admin_property.html", prop=prop, is_new=(code == "new"), err="")
+
+
+@app.post("/admin/properties/{code}", response_class=HTMLResponse)
+async def admin_property_save(request: Request, code: str, user: User = Depends(require_admin)):
+    store = require_db_store()
+    form = await request.form()
+    if form.get("action") == "delete" and code != "new":
+        store.delete_property(code)
+        state.reload_config()
+        return RedirectResponse("/admin?msg=Property+deleted", status_code=303)
+    fields = {k: (form.get(k) or "") for k in PROPERTY_COLUMNS}
+    fields["enabled"] = "1" if form.get("enabled") else "0"
+    try:
+        store.save_property(**fields)
+    except ValueError as e:
+        return render(request, "admin_property.html", prop=fields, is_new=(code == "new"), err=str(e))
+    state.reload_config()
+    return RedirectResponse(f"/admin?msg=Saved+{fields['code']}", status_code=303)
+
+
+@app.post("/admin/users")
+async def admin_user_save(request: Request, user: User = Depends(require_admin)):
+    store = require_db_store()
+    form = await request.form()
+    try:
+        if form.get("action") == "delete":
+            store.delete_user(form.get("username", ""))
+        else:
+            props = [p.strip() for p in (form.get("properties") or "").replace(";", ",").split(",")]
+            store.save_user(form.get("username", ""), form.get("role", "manager"), props,
+                            password=(form.get("password") or None), enabled=bool(form.get("enabled", "1")))
+    except ValueError as e:
+        return RedirectResponse(f"/admin?err={e}", status_code=303)
+    state.reload_config()
+    return RedirectResponse("/admin?msg=User+saved", status_code=303)

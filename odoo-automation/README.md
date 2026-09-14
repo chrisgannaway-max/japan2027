@@ -276,3 +276,18 @@ config/                property list, GL mappings per PMS, expense categories, E
 tools/                 extract_layout_text.py (build fixtures, debug parsing)
 tests/                 fixtures + tests
 ```
+
+## Files or database: the configuration switch
+
+Everything runs from files by default. When the client is ready to manage properties and
+logins themselves, flip one variable and use the Settings page instead:
+
+| Variable | Values | Meaning |
+|---|---|---|
+| `PORTAL_STORE` | `yaml` (default) / `db` | `yaml`: properties, logins and GL mappings come from `config/`. `db`: they live in the portal database and are edited on `/admin` (add property, edit its report id, Odoo company, analytic, journal and mapping YAML; add or reset logins). |
+| `DELIVERY_MODE` | `download` (default) / `odoo` | `download`: admin downloads the Odoo import CSV. `odoo`: the dashboard offers "Send to Odoo" for a whole day through the API (needs `ODOO_URL` and `ODOO_API_KEY`); CSV stays available. |
+
+Switching to the database: start with `PORTAL_STORE=db`, log in with a user seeded from the
+files (`python -m portal seed` does the same as the "Import from the config files" button on
+`/admin`), then edit in the browser. Mapping YAML is validated on save; the pipeline picks up
+edits immediately. The files stay as documentation and as the seed for a fresh install.

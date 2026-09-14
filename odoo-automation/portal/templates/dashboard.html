@@ -26,6 +26,15 @@
     </tbody></table></div>
 </div>
 <div class="card">
+  {% if delivery == 'odoo' and odoo_enabled %}
+  <h2>Send {{ day }} to Odoo</h2>
+  <p class="small">{{ ready|length }} balanced entr{{ 'y' if ready|length == 1 else 'ies' }} not yet in Odoo will be created through the API. Entries already sent are skipped.</p>
+  <form method="post" action="/export/{{ day }}/post" class="row">
+    <select id="post_now_day" name="post_now"><option value="no">as drafts</option><option value="yes">posted</option></select>
+    <button class="btn" type="submit">Send to Odoo</button>
+    <a class="btn secondary" href="/export/{{ day }}.csv?fmt=odoo">or download CSV</a>
+  </form>
+  {% else %}
   <h2>Export for {{ day }}</h2>
   <p class="small">{{ ready|length }} balanced entr{{ 'y' if ready|length == 1 else 'ies' }}. The Odoo format is the Journal Entries import layout; the flat format is one row per line for Excel.</p>
   <div class="row">
@@ -33,6 +42,7 @@
     <a class="btn secondary" href="/export/{{ day }}.csv?fmt=odoo&approved=yes">Approved only</a>
     <a class="btn secondary" href="/export/{{ day }}.csv?fmt=flat">Flat CSV</a>
   </div>
+  {% endif %}
 </div>
 {% if dates %}<p class="small">Days with uploads: {% for d in dates %}<a href="/?day={{ d }}">{{ d }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 {% endblock %}

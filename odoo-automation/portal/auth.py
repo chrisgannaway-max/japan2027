@@ -63,13 +63,19 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 class UserStore:
-    def __init__(self, path: Path):
-        self.path = Path(path)
+    def __init__(self, path: Optional[Path] = None, records: Optional[list[dict]] = None):
+        self.path = Path(path) if path else None
+        self.records = records
         self.users: dict[str, User] = {}
         self.reload()
 
-    def reload(self) -> None:
-        data = yaml.safe_load(self.path.read_text()) if self.path.exists() else {}
+    def reload(self, records: Optional[list[dict]] = None) -> None:
+        if records is not None:
+            self.records = records
+        if self.records is not None:
+            data = {"users": self.records}
+        else:
+            data = yaml.safe_load(self.path.read_text()) if self.path and self.path.exists() else {}
         self.users = {}
         for u in (data or {}).get("users", []):
             self.users[u["username"]] = User(username=u["username"], role=u.get("role", "manager"),

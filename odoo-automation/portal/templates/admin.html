@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% block title %}Settings{% endblock %}
+{% block body %}
+<h1>Settings</h1>
+{% if msg %}<p class="pill ok">{{ msg }}</p>{% endif %}{% if err %}<p class="err">{{ err }}</p>{% endif %}
+<div class="card">
+  <h2>Where configuration lives: <span class="pill {{ 'ok' if store_mode == 'db' else 'muted' }}">{{ 'database' if store_mode == 'db' else 'files' }}</span></h2>
+  {% if store_mode == 'db' %}
+    <p class="small">Properties, logins and GL mappings are stored in the portal database and edited here. Delivery mode: <b>{{ delivery }}</b>{% if not odoo_enabled %} (Odoo connection not configured){% endif %}.</p>
+    <form method="post" action="/admin/import-yaml" class="row"><label><input type="checkbox" id="overwrite" name="overwrite" value="yes"> overwrite existing rows</label><button class="btn secondary" type="submit">Import from the config files</button></form>
+  {% else %}
+    <p class="small">Read from <code>{{ config_path }}</code> and <code>{{ users_path }}</code>. Edit the files and restart, or start the portal with <code>PORTAL_STORE=db</code> to manage everything on this page (use "Import from the config files" once to seed it).</p>
+  {% endif %}
+</div>
+<div class="card">
+  <div class="row" style="justify-content:space-between"><h2>Properties</h2>{% if store_mode == 'db' %}<a class="btn" href="/admin/properties/new">Add property</a>{% endif %}</div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>Name</th><th>PMS</th><th>Report id / name</th><th>Odoo company</th><th>Analytic</th><th>Journal</th><th>Enabled</th><th></th></tr></thead>
+    <tbody>{% for p in properties %}
+      <tr><td><b>{{ p.code }}</b></td><td>{{ p.name }}</td><td>{{ p.pms }}</td><td>{{ p.pms_property_id }} {{ p.pms_property_name }}</td><td>{{ p.company }}</td><td>{{ p.analytic }}</td><td>{{ p.journal }}</td><td>{{ 'yes' if p.enabled else 'no' }}</td>
+          <td>{% if store_mode == 'db' %}<a href="/admin/properties/{{ p.code }}">edit</a>{% endif %}</td></tr>
+    {% endfor %}</tbody></table></div>
+</div>
+<div class="card">
+  <h2>Logins</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Username</th><th>Role</th><th>Properties</th><th>Enabled</th>{% if store_mode == 'db' %}<th></th>{% endif %}</tr></thead>
+    <tbody>{% for u in users_list %}
+      <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.properties }}</td><td>{{ 'yes' if u.enabled else 'no' }}</td>
+      {% if store_mode == 'db' %}<td><form method="post" action="/admin/users" class="row"><input type="hidden" name="username" value="{{ u.username }}"><input type="hidden" name="role" value="{{ u.role }}"><input type="hidden" name="properties" value="{{ u.properties }}"><input id="pw_{{ u.username }}" name="password" type="password" placeholder="new password"><button class="btn secondary" type="submit">Reset</button><button class="btn secondary" type="submit" name="action" value="delete">Delete</button></form></td>{% endif %}</tr>
+    {% endfor %}</tbody></table></div>
+  {% if store_mode == 'db' %}
+  <h3>Add or update a login</h3>
+  <form method="post" action="/admin/users" class="row">
+    <input id="new_username" name="username" placeholder="username" required>
+    <select id="new_role" name="role"><option value="manager">manager</option><option value="admin">admin</option></select>
+    <input id="new_props" name="properties" placeholder="OKCON, TXI47">
+    <input id="new_password" name="password" type="password" placeholder="password" required>
+    <button class="btn" type="submit">Save login</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
