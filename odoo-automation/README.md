@@ -87,7 +87,7 @@ Odoo connection (environment variables):
 | `ODOO_DB`           | database name (needed on servers hosting several databases)        |
 | `ODOO_TRANSPORT`    | `json2` (default, Odoo 19+) or `xmlrpc` (Odoo 18 and earlier)      |
 | `ODOO_USER`         | bot user login, only for `xmlrpc`                                  |
-| `ANTHROPIC_API_KEY` | for invoice extraction                                             |
+| `ANTHROPIC_API_KEY` | optional: turns on the AI invoice reader (night audit never uses it) |
 
 Odoo Online note: the external API is only enabled on the *Custom* plan, not *One App Free* or
 *Standard*. Odoo.sh and self-hosted have no such restriction.
@@ -206,6 +206,23 @@ template of the client's Odoo version (Accounting > Journal Entries > Import > t
 The same pipeline (`pms_to_odoo/pipeline.py`) drives the CLI `batch` command and the portal,
 so a file behaves identically on either path.
 
+## Vendor invoices (no AI required)
+
+Managers upload an invoice on `/invoices`; the reader pre-fills a form; the manager checks
+it and submits; admin approves, exports the bills CSV in Odoo's Bills import layout, or
+creates the draft bill in Odoo directly.
+
+Two readers sit behind the same screen:
+
+| Reader   | Needs                       | Reads                                              | Set with                  |
+|----------|-----------------------------|----------------------------------------------------|---------------------------|
+| `rules`  | nothing                     | invoices whose PDF has a text layer (most e-mailed ones): vendor, tax id, invoice number, dates, subtotal, tax, total, PO. Per-vendor regex templates in `config/vendor_templates.yaml` make it exact for regular vendors. | default when no key is set, or `INVOICE_READER=rules` |
+| `claude` | `ANTHROPIC_API_KEY`, pay per use (cents per invoice) | everything above plus scanned images and line items, with a confidence | `INVOICE_READER=claude` or just setting the key |
+
+The AI reader is optional. If it is on and fails for any reason the upload falls back to the
+rules reader, so nothing is ever blocked on the service. Nothing on the night-audit side uses
+it at all. Duplicate invoices (same vendor and number) are flagged on the review form.
+
 ## Scheduling (alternative to the portal)
 
 The CLI is stateless, so any scheduler works: a cron job or Windows Task Scheduler running
@@ -242,7 +259,7 @@ pms_to_odoo/
     synxis.py          SynXis Transaction Totals Summary + Hotel Ledger Comparison (pair)
     generic_table.py   config-driven label+amount parser
     excel_template.py  GM spreadsheet reader
-  invoices/            Claude extraction (schema-validated) and vendor bill creation
+  invoices/            rules reader (no AI), optional Claude reader, vendor bill creation
   pipeline.py          detect -> parse -> map -> balance, shared by CLI and portal
   export.py            Odoo Journal Entries import CSV / flat CSV
   cli.py               inspect / daily / batch / invoice / accounts / check

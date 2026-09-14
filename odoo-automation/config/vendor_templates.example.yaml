@@ -1,0 +1,13 @@
+# Exact extraction rules for vendors you see every month (used by the no-AI invoice reader).
+# `match` is searched in the invoice text; the first matching vendor wins.  Each field regex
+# must have one capture group.  Copy to vendor_templates.yaml and add your vendors.
+vendors:
+  - name: Example Linen Co
+    match: "Example Linen"
+    vendor_name: Example Linen Co
+    fields:
+      invoice_number: "Invoice\\s*#\\s*([A-Z0-9-]+)"
+      invoice_date: "Invoice Date\\s*[:]?\\s*(\\d{1,2}/\\d{1,2}/\\d{4})"
+      due_date: "Due Date\\s*[:]?\\s*(\\d{1,2}/\\d{1,2}/\\d{4})"
+      total: "Total Due\\s*[:]?\\s*\\$?([\\d,]+\\.\\d{2})"
+      tax_amount: "Sales Tax\\s*[:]?\\s*\\$?([\\d,]+\\.\\d{2})"

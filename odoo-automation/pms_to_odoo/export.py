@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import io
+from decimal import Decimal
 from typing import Iterable
 
 from .models import JournalEntry
@@ -38,4 +39,23 @@ def entries_to_flat_csv(entries: Iterable[JournalEntry]) -> str:
         for l in e.lines:
             w.writerow([e.ref, e.date.isoformat(), e.journal_code, l.account_code, l.name,
                         f"{l.debit:.2f}", f"{l.credit:.2f}", l.partner_ref or "", l.analytic_code or ""])
+    return buf.getvalue()
+
+
+BILL_HEADERS = ["Vendor", "Bill Reference", "Bill Date", "Due Date", "Invoice lines/Label", "Invoice lines/Account",
+                "Invoice lines/Quantity", "Invoice lines/Unit Price", "Invoice lines/Taxes", "Notes"]
+
+
+def bills_to_odoo_csv(bills: Iterable[dict]) -> str:
+    """Vendor bills in Odoo's Bills import layout (one line per bill with the untaxed amount;
+    tax is left to the accountant's default tax on the account, noted in the Notes column)."""
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(BILL_HEADERS)
+    for b in bills:
+        w.writerow([b.get("vendor_name", ""), b.get("invoice_number", ""), b.get("invoice_date", ""), b.get("due_date", "") or "",
+                    b.get("description") or f"Invoice {b.get('invoice_number', '')}", b.get("account_code", "") or "",
+                    "1", f"{Decimal(str(b.get('subtotal') or 0)):.2f}", "",
+                    f"tax {Decimal(str(b.get('tax_amount') or 0)):.2f}; total {Decimal(str(b.get('total') or 0)):.2f}; "
+                    f"property {b.get('property_code', '')}; {b.get('notes', '') or ''}".strip("; ")])
     return buf.getvalue()

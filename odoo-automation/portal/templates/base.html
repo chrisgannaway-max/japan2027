@@ -29,7 +29,8 @@ pre{background:var(--code);padding:12px;border-radius:4px;overflow-x:auto;font-s
   <b>Night Audit to Odoo</b>
   {% if user %}
     {% if user.is_admin %}<a href="/">Dashboard</a>{% endif %}
-    <a href="/upload">Upload</a>
+    <a href="/upload">Night audit</a>
+    <a href="/invoices">Invoices</a>
     <span class="sp"></span>
     <small>{{ user.username }} ({{ user.role }})</small> <a href="/logout">Log out</a>
   {% endif %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% block title %}Invoices{% endblock %}
+{% block body %}
+<div class="row" style="justify-content:space-between"><h1>Vendor invoices</h1>
+  <span class="small">Reader: <b>{{ invoice_reader }}</b>{% if invoice_reader == 'rules' %} (no AI; text is read with rules and you confirm the fields){% endif %}</span></div>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<div class="card">
+  <form method="post" action="/invoices/upload" enctype="multipart/form-data" class="row">
+    <label>Property
+      <select id="inv_property" name="property_code">
+        {% if props|length > 1 %}<option value="">choose…</option>{% endif %}
+        {% for code, p in props.items() %}<option value="{{ code }}" {% if props|length == 1 %}selected{% endif %}>{{ code }} · {{ p.name }}</option>{% endfor %}
+      </select></label>
+    <label>Invoice file <input id="inv_file" type="file" name="file" required accept=".pdf,.png,.jpg,.jpeg,.txt"></label>
+    <button class="btn" type="submit">Upload and read</button>
+  </form>
+</div>
+{% if draft %}
+<div class="card">
+  <h2>Invoice #{{ draft.id }} · {{ draft.file_name }} <span class="pill {{ 'ok' if draft.status in ('approved','exported','posted') else ('bad' if draft.status == 'rejected' else 'warn') }}">{{ draft.status }}</span>
+    <span class="pill muted">read by {{ draft.reader }}, confidence {{ draft.confidence }}</span></h2>
+  {% if duplicate %}<p class="err">⚠ Looks like a duplicate of invoice #{{ duplicate.id }} ({{ duplicate.vendor_name }} {{ duplicate.invoice_number }}, {{ duplicate.status }}).</p>{% endif %}
+  {% if draft.notes %}<p class="small">Reader notes: {{ draft.notes }}</p>{% endif %}
+  <form method="post" action="/invoices/{{ draft.id }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+    <label>Property <select id="f_property" name="property_code">{% for code, p in props.items() %}<option value="{{ code }}" {% if code == draft.property_code %}selected{% endif %}>{{ code }}</option>{% endfor %}</select></label>
+    <label>Vendor <input id="f_vendor" name="vendor_name" value="{{ draft.vendor_name or '' }}" required></label>
+    <label>Vendor tax id <input id="f_taxid" name="vendor_tax_id" value="{{ draft.vendor_tax_id or '' }}"></label>
+    <label>Invoice number <input id="f_number" name="invoice_number" value="{{ draft.invoice_number or '' }}" required></label>
+    <label>Invoice date <input id="f_date" type="date" name="invoice_date" value="{{ draft.invoice_date or '' }}" required></label>
+    <label>Due date <input id="f_due" type="date" name="due_date" value="{{ draft.due_date or '' }}"></label>
+    <label>Subtotal <input id="f_subtotal" name="subtotal" value="{{ draft.subtotal or '' }}"></label>
+    <label>Tax <input id="f_tax" name="tax_amount" value="{{ draft.tax_amount or '0' }}"></label>
+    <label>Total <input id="f_total" name="total" value="{{ draft.total or '' }}" required></label>
+    <label>Expense account <select id="f_account" name="account_code"><option value="">— pick —</option>{% for cat, code in categories.items() %}<option value="{{ code }}" {% if code == draft.account_code %}selected{% endif %}>{{ code }} · {{ cat }}</option>{% endfor %}</select></label>
+    <label style="grid-column:1/-1">Description <input id="f_desc" name="description" value="{{ draft.description or '' }}"></label>
+    <label style="grid-column:1/-1">Notes <input id="f_notes" name="notes" value="{{ draft.notes or '' }}"></label>
+    <div class="row" style="grid-column:1/-1">
+      <button class="btn secondary" type="submit" name="action" value="save">Save</button>
+      {% if not user.is_admin %}<button class="btn" type="submit" name="action" value="submit">Submit to accounting</button>{% endif %}
+      {% if user.is_admin %}
+        <button class="btn" type="submit" name="action" value="approve">Approve</button>
+        <button class="btn secondary" type="submit" name="action" value="reject">Reject</button>
+      {% endif %}
+    </div>
+  </form>
+  {% if user.is_admin and odoo_enabled and draft.status in ('approved','exported') %}
+    <form method="post" action="/invoices/{{ draft.id }}/post"><button class="btn" type="submit">Create draft bill in Odoo</button></form>
+  {% endif %}
+</div>
+{% endif %}
+<div class="card">
+  <div class="row" style="justify-content:space-between"><h2>Recent invoices</h2>
+    {% if user.is_admin %}<div class="row"><a class="btn" href="/invoices/export/bills.csv?status=approved">Export approved bills (Odoo CSV)</a><a class="btn secondary" href="/invoices/export/bills.csv?status=all">Export all</a></div>{% endif %}</div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Property</th><th>Vendor</th><th>Invoice</th><th>Date</th><th class="n">Total</th><th>Status</th><th>By</th></tr></thead>
+    <tbody>{% for i in invoices %}
+      <tr><td><a href="/invoices/{{ i.id }}">{{ i.id }}</a></td><td>{{ i.property_code }}</td><td>{{ i.vendor_name }}</td><td>{{ i.invoice_number }}</td><td>{{ i.invoice_date }}</td><td class="n">{{ i.total }}</td>
+          <td><span class="pill {{ 'ok' if i.status in ('approved','exported','posted') else ('bad' if i.status == 'rejected' else 'warn') }}">{{ i.status }}</span></td><td>{{ i.uploaded_by }}</td></tr>
+    {% else %}<tr><td colspan="8" class="small">No invoices yet.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

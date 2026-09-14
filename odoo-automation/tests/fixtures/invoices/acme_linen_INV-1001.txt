@@ -1,0 +1,20 @@
+ACME LINEN SUPPLY LLC
+4210 Industrial Blvd, Oklahoma City, OK 73108
+EIN 12-3456789
+
+INVOICE
+
+Bill To:                                   Invoice #: INV-1001
+Embassy Suites OKC Northwest               Invoice Date: 09/10/2026
+1815 S Meridian Ave                        Due Date: 10/10/2026
+Oklahoma City, OK 73108                    PO Number: 4477
+
+Description                        Qty     Unit Price       Amount
+Bath towels 27x54                   10          30.00       300.00
+Pool towels                          8          25.00       200.00
+
+                                         Subtotal:          500.00
+                                         Sales Tax (8%):     40.00
+                                         Total Due:        $540.00
+
+Thank you for your business.

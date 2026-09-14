@@ -28,6 +28,33 @@ CREATE TABLE IF NOT EXISTS runs (
     superseded INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS runs_prop_date ON runs(property_code, business_date);
+CREATE TABLE IF NOT EXISTS invoices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    uploaded_by TEXT,
+    property_code TEXT,
+    vendor_name TEXT,
+    vendor_tax_id TEXT,
+    invoice_number TEXT,
+    invoice_date TEXT,
+    due_date TEXT,
+    subtotal TEXT,
+    tax_amount TEXT,
+    total TEXT,
+    account_code TEXT,
+    description TEXT,
+    notes TEXT,
+    file_name TEXT,
+    stored_path TEXT,
+    reader TEXT,
+    confidence TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    approved_at TEXT,
+    approved_by TEXT,
+    exported_at TEXT,
+    posted_at TEXT,
+    odoo_move_id INTEGER
+);
 """
 
 
@@ -82,3 +109,43 @@ class Database:
             return [r[0] for r in c.execute(
                 "SELECT DISTINCT business_date FROM runs WHERE business_date IS NOT NULL ORDER BY business_date DESC LIMIT ?",
                 (limit,))]
+
+    # ---------------------------------------------------------------- invoices
+    INVOICE_FIELDS = ("property_code", "vendor_name", "vendor_tax_id", "invoice_number", "invoice_date", "due_date",
+                      "subtotal", "tax_amount", "total", "account_code", "description", "notes")
+
+    def add_invoice(self, *, uploaded_by: str, file_name: str, stored_path: str, reader: str, confidence: str,
+                    **fields) -> int:
+        cols = ["created_at", "uploaded_by", "file_name", "stored_path", "reader", "confidence"] + list(fields)
+        vals = [datetime.now().isoformat(timespec="seconds"), uploaded_by, file_name, stored_path, reader, confidence] + list(fields.values())
+        with self._conn() as c:
+            cur = c.execute(f"INSERT INTO invoices({', '.join(cols)}) VALUES({', '.join('?' * len(cols))})", vals)
+            return int(cur.lastrowid)
+
+    def get_invoice(self, inv_id: int) -> Optional[sqlite3.Row]:
+        with self._conn() as c:
+            return c.execute("SELECT * FROM invoices WHERE id=?", (inv_id,)).fetchone()
+
+    def update_invoice(self, inv_id: int, **fields) -> None:
+        cols = ", ".join(f"{k}=?" for k in fields)
+        with self._conn() as c:
+            c.execute(f"UPDATE invoices SET {cols} WHERE id=?", (*fields.values(), inv_id))
+
+    def list_invoices(self, status: Optional[str] = None, property_codes: Optional[list[str]] = None,
+                      limit: int = 200) -> list[sqlite3.Row]:
+        where, params = [], []
+        if status:
+            where.append("status=?"); params.append(status)
+        if property_codes is not None:
+            marks = ",".join("?" * len(property_codes)) or "''"
+            where.append(f"property_code IN ({marks})"); params.extend(property_codes)
+        sql = "SELECT * FROM invoices" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY id DESC LIMIT ?"
+        with self._conn() as c:
+            return c.execute(sql, (*params, limit)).fetchall()
+
+    def find_duplicate_invoice(self, vendor_name: str, invoice_number: str, exclude_id: int = 0) -> Optional[sqlite3.Row]:
+        if not vendor_name or not invoice_number:
+            return None
+        with self._conn() as c:
+            return c.execute("SELECT * FROM invoices WHERE lower(vendor_name)=lower(?) AND invoice_number=? AND id<>? "
+                             "AND status<>'rejected' ORDER BY id LIMIT 1", (vendor_name, invoice_number, exclude_id)).fetchone()
