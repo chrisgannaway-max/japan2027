@@ -48,7 +48,8 @@ def detect_pms(text: str) -> Optional[str]:
         return "CHOICEADV"
     if "trial_balance" in low or ("trial balance" in low and "balance yesterday" in low):
         return "OPERA"
-    if "agilysys" in low or ("ledger summary" in low and "transaction type :" in low):
+    if "agilysys" in low or ("ledger summary" in low and "transaction type :" in low) \
+            or low.startswith("category subcategory transaction type transaction item"):
         return "AGILYSYS"
     if "transaction totals summary" in low or "hotel ledger comparison" in low or re.search(r"\bsynxis\b", low):
         return "SYNXIS"

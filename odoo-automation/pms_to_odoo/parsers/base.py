@@ -34,8 +34,8 @@ STAT_RE = re.compile(STAT_TOKEN)
 
 
 def collapse(text: str) -> str:
-    """Collapse runs of whitespace (layout-mode text spaces words out)."""
-    return re.sub(r"\s+", " ", text).strip()
+    """Collapse runs of whitespace (layout-mode text spaces words out); drops byte-order marks."""
+    return re.sub(r"\s+", " ", text.replace("\ufeff", "")).strip()
 
 
 def parse_amount(text: str) -> Optional[Decimal]:

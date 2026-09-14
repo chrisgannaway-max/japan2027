@@ -21,7 +21,7 @@ produces an entry that balances to the cent against the report's own control tot
 | Choice   | choiceADVANTAGE  | Night-audit pack: **Final Transaction Closeout** + **Hotel Journal Summary** (+ Hotel Statistics) | TXI47 | `CHOICEADV` |
 | IHG      | HotelKey         | **Trial Balance Report** (PDF, or the .eml it is attached to) | OKCMD | `HOTELKEY` |
 | IHG      | OPERA            | Daily **Trial Balance** (trial_balance)          | Candlewood Moore | `OPERA` |
-| Marriott | Agilysys Stay    | **Ledger Summary** grouped by ledger (City / Deposit / Guest) | OKCAW | `AGILYSYS`  |
+| Marriott | Agilysys Stay    | **Ledger Summary** grouped by ledger, PDF or CSV export | OKCAW | `AGILYSYS`  |
 | Wyndham  | SynXis Property Hub | **Transaction Totals Summary** + **Hotel Ledger Comparison Report** (pair, same folder) | 89051 | `SYNXIS` |
 
 Account codes in the mapping files are USALI-style placeholders until the Odoo chart of
@@ -161,7 +161,9 @@ Journal entry PEP-OKCON-2025-11-10  date=2025-11-10  journal=NA  company=Example
 - **HotelKey Trial Balance**: folio-centric (charges debit, payments credit); the parser flips
   the sign of ASSET rows. `(Offset)` accounts are the ledgers. Card brands all share code
   `FPCC`, so card rules match on name. Reports arrive by e-mail; `.eml` is accepted directly.
-- **Agilysys Stay Ledger Summary**: one block per PMS ledger with BEGINNING/ENDING balances
+- **Agilysys Stay Ledger Summary**: PDF or the CSV export (the one the property calls "the
+  Excel"); the CSV is preferred as it is exact and carries the GL CODE column. Export it *with*
+  subtotals, because the ledger balance rows are what give the ledger movement. One block per PMS ledger with BEGINNING/ENDING balances
   (the ledger movement) and PAYMENTS / REVENUE / TRANSFERS types. The REVENUE type mixes
   revenue and tax items; taxes are recognised by code `T…` and the word Tax. Transfers
   between ledgers net to zero and are not booked. The report has a GL CODE column, empty on

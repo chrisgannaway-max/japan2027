@@ -259,3 +259,21 @@ def test_synxis_ledger_file_as_entry_point_and_missing_companion(tmp_path):
     alone.write_text((SYNXIS / "transaction_totals_summary.txt").read_text())
     r2 = get_parser("SYNXIS").parse(alone, "LQ89051")
     assert r2.total("ledger") == 0 and any("Ledger Comparison" in w for w in r2.warnings)
+
+
+def test_agilysys_csv_export_matches_pdf(agilysys):
+    """The CSV export (what the property calls 'the Excel') must give the same lines as the PDF."""
+    csv_rep = get_parser("AGILYSYS").parse(FIXTURES / "agilysys" / "Ledger_Summary_OKCAW_2026-07-09_10-47-16.csv", "OKCAW")
+    assert detect_pms(read_text(FIXTURES / "agilysys" / "Ledger_Summary_OKCAW_2026-07-09_10-47-16.csv")) == "AGILYSYS"
+    assert csv_rep.business_date == date(2026, 7, 8) and csv_rep.pms_property_id == "OKCAW"
+    assert csv_rep.warnings == []
+    key = lambda r: sorted((l.section, l.code, l.label, l.amount) for l in r.lines)  # noqa: E731
+    assert key(csv_rep) == key(agilysys)
+    entry = GLMapping.load(CONFIG / "marriott_agilysys.example.yaml").build_entry(csv_rep)
+    assert entry.imbalance == 0 and entry.total_debit == Decimal("8739.56")
+
+
+def test_agilysys_csv_without_subtotals_warns():
+    r = get_parser("AGILYSYS").parse(FIXTURES / "agilysys" / "Ledger_Summary_OKCAW_2026-07-09_10-47-13_detail_only.csv", "OKCAW")
+    assert r.total("revenue") == Decimal("7021.95") and r.total("ledger") == 0   # 7,944.72 less 922.77 tax
+    assert any("ledger balance rows" in w for w in r.warnings)

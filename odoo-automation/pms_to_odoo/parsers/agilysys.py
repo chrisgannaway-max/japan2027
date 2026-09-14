@@ -22,6 +22,8 @@ codes inside Agilysys, they are captured into ReportLine.code_gl for direct mapp
 """
 from __future__ import annotations
 
+import csv
+import io
 import re
 from datetime import date
 from decimal import Decimal
@@ -29,7 +31,7 @@ from pathlib import Path
 from typing import Optional
 
 from ..models import DailyReport
-from .base import BaseParser, collapse, iter_lines, parse_date, read_text, split_row
+from .base import BaseParser, collapse, iter_lines, parse_amount, parse_date, read_text, split_row
 
 LEDGER_NAMES = {"CITY": "City Ledger", "DEPOSIT": "Deposit Ledger", "GUEST": "Guest Ledger",
                 "PACKAGE": "Package Ledger", "AR": "City Ledger"}
@@ -41,8 +43,14 @@ class MarriottAgilysysParser(BaseParser):
     brand = "Marriott"
     expects = "Agilysys Stay 'Ledger Summary' report grouped by ledger"
 
+    CSV_HEADER = ("CATEGORY", "SUBCATEGORY", "TRANSACTION TYPE", "TRANSACTION ITEM", "TRANSACTION CODE",
+                  "GL CODE", "AMOUNT", "BEGINNING", "ENDING")
+
     def parse(self, path: str | Path, property_code: str,
               business_date: Optional[date] = None) -> DailyReport:
+        p = Path(path)
+        if p.suffix.lower() == ".csv":
+            return self._parse_csv(p, property_code, business_date)
         text = read_text(path)
         flat = collapse(re.sub(r"===== (PAGE|ATTACHMENT)[^\n]*", " ", text))
         sd = re.search(r"Start Date\s*:\s*([A-Za-z]{3} \d{1,2}, \d{4})", flat)
@@ -115,4 +123,69 @@ class MarriottAgilysysParser(BaseParser):
             report.warnings.append(f"Inter-ledger transfers do not net to zero ({report.total('transfer')}).")
         if not report.lines:
             report.warnings.append("No ledger rows recognised.")
+        return report
+
+    # ------------------------------------------------------------------ CSV export
+    def _parse_csv(self, p: Path, property_code: str, business_date: Optional[date]) -> DailyReport:
+        """Agilysys "Ledger Summary" exported as CSV (what the properties call the Excel).
+
+        Columns: CATEGORY, SUBCATEGORY (business date), TRANSACTION TYPE, TRANSACTION ITEM,
+        TRANSACTION CODE, GL CODE, AMOUNT, BEGINNING, ENDING.  Rows with a blank TRANSACTION
+        TYPE are the ledger balance rows (BEGINNING / ENDING); rows with a type but no item
+        are type subtotals.  Some exports omit the subtotal rows, in which case the ledger
+        movements are missing and the report says so.
+        """
+        raw = p.read_text(encoding="utf-8-sig", errors="replace").lstrip("\ufeff")   # some exports carry two BOMs
+        rows = [{(k or "").strip().lstrip("\ufeff").upper(): v for k, v in r.items()} for r in csv.DictReader(io.StringIO(raw))]
+        header = tuple(rows[0].keys()) if rows else ()
+        report = DailyReport(property_code=property_code, pms=self.pms,
+                             business_date=business_date or date.today(), source_file=str(p))
+        if not rows or not set(self.CSV_HEADER[:4]) <= set(header):
+            report.warnings.append("This CSV is not an Agilysys Ledger Summary export (unexpected columns).")
+            report.recognised = False
+            return report
+        m = re.search(r"([A-Za-z0-9]+)_\d{4}-\d{2}-\d{2}", p.stem)   # Ledger_Summary_OKCAW_2026-07-09_...
+        report.pms_property_id = m.group(1) if m else ""
+        get = lambda r, k: (r.get(k) or "").strip()  # noqa: E731
+        dates = set()
+        have_balances = False
+        for i, r in enumerate(rows, start=2):
+            cat, sub, typ = get(r, "CATEGORY").upper(), get(r, "SUBCATEGORY"), get(r, "TRANSACTION TYPE").upper()
+            item, code, gl = get(r, "TRANSACTION ITEM"), get(r, "TRANSACTION CODE"), get(r, "GL CODE")
+            amount = parse_amount(get(r, "AMOUNT")) or Decimal("0")
+            d = parse_date(sub)
+            if d:
+                dates.add(d)
+            ledger = LEDGER_NAMES.get(cat, f"{cat.title()} Ledger")
+            src = f"{self.pms}:{p.name}:R{i}"
+            if not typ:                                      # ledger balance row
+                b, e = parse_amount(get(r, "BEGINNING")), parse_amount(get(r, "ENDING"))
+                if b is not None and e is not None:
+                    have_balances = True
+                    report.stats[f"{ledger} Beginning"], report.stats[f"{ledger} Ending"] = b, e
+                    report.add(f"{ledger} Net Change", e - b, "ledger", src)
+                continue
+            if not item:                                     # type subtotal row
+                report.stats[f"{ledger} {typ.title()} Total"] = amount
+                continue
+            if typ == "PAYMENTS":
+                line = report.add(item, -amount, "settlement", src, code=code)
+            elif typ == "REVENUE":
+                is_tax = bool(re.search(r"\btax\b", item, re.I)) or code.startswith("T")
+                line = report.add(item, amount, "tax" if is_tax else "revenue", src, code=code)
+            elif typ == "TRANSFERS":
+                line = report.add(f"{ledger}: {item}", amount, "transfer", src, code=code)
+            else:
+                line = report.add(item, amount, "", src, code=code)
+            if gl:
+                line.gl_code = gl
+        if business_date is None and len(dates) == 1:
+            report.business_date = dates.pop()
+        elif len(dates) > 1:
+            report.warnings.append(f"CSV covers several dates: {sorted(dates)}")
+        if not have_balances:
+            report.warnings.append("Export has no ledger balance rows (BEGINNING/ENDING): ledger movements "
+                                   "missing, the entry will not balance. Export the summary with subtotals.")
+        if abs(report.total("transfer")) > Decimal("0.01"):
+            report.warnings.append(f"Inter-ledger transfers do not net to zero ({report.total('transfer')}).")
         return report
