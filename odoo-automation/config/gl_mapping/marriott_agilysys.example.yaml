@@ -1,15 +1,35 @@
-# GL mapping stub for marriott_agilysys.  Copy the rules from hilton_pep.example.yaml and adjust the
-# label patterns to the wording used on this PMS's night-audit report once samples arrive.
-property: CHANGE-ME
+# Agilysys Stay "Ledger Summary" -> GL.  Built from the OKCAW (SpringHill Suites OKC Airport West) sample.
+# Rules match Agilysys transaction codes where they are stable; taxes and market items by name.
+# TIP: the report has a GL CODE column. If GL codes are maintained in Agilysys, rules can
+# be replaced by a direct code -> account map.
+property: OKCAW
+company: Example Hotel LLC
 journal: NA
+analytic: OKCAW
 tolerance: 0.01
+
 rules:
-  - {match: "^room revenue$", account: "4000", side: credit}
-  - {match: "tax", account: "2200", side: credit}
-  - {match: "^cash", account: "1010", side: debit}
-  - {match: "^(visa|mastercard|amex|discover)", account: "1120", side: debit}
-  - {match: "^(direct bill|city ledger)", account: "1200", side: debit}
-  - {match: "^guest ledger", account: "1210", side: signed}
-ignore:
-  - "^(occupancy|adr|revpar|rooms? (sold|available))"
-  - "^total"
+  # revenue
+  - {match: "^room charge", section: revenue, account: "4000"}     # RP, RN, ... room charge variants
+  - {code: C3, account: "4010"}                                      # Guestroom Cancellations
+  - {match: "cancel|no.?show|attrition", section: revenue, account: "4010"}
+  - {match: "^market ", section: revenue, account: "4120"}          # PJ / PI / MZ market items
+  - {match: "^f&b package", section: revenue, account: "4100"}      # FG / FH
+  - {match: "pet|laundry|parking|misc|other", section: revenue, account: "4300"}
+  # taxes (REVENUE type, codes T..)
+  - {match: "tax", section: tax, account: "2200"}
+  # settlements (positive = received)
+  - {code: CA, account: "1010"}                                      # Cash Payment
+  - {code: MC, account: "1120"}                                      # MasterCard
+  - {code: VI, account: "1120"}                                      # Visa
+  - {code: AX, account: "1121"}                                      # American Express
+  - {code: DS, account: "1122"}                                      # Discover
+  - {code: BV, account: "1140"}                                      # Marriott Bonvoy Redemption (due from Marriott)
+  - {match: "check|cheque", section: settlement, account: "1010"}
+  - {match: "direct bill|city ledger", section: settlement, account: "1200"}
+  # ledger movements (from BEGINNING / ENDING balances)
+  - {match: "^guest ledger net change",   account: "1210"}
+  - {match: "^city ledger net change",    account: "1200"}
+  - {match: "^deposit ledger net change", account: "2300"}
+  - {match: "^package ledger net change", account: "2310"}
+# Transfers between ledgers ("Transfer to GUESTLEDGER" etc.) net to zero and are not booked.

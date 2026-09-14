@@ -5,7 +5,8 @@ import re
 from typing import Optional
 
 from .base import BaseParser, collapse, read_text
-from .brands import MarriottAgilysysParser, WyndhamSynxisParser
+from .agilysys import MarriottAgilysysParser
+from .brands import WyndhamSynxisParser
 from .choice import ChoiceAdvantageParser
 from .excel_template import ExcelTemplateParser
 from .generic_table import GenericTableParser
@@ -15,7 +16,7 @@ from .pep import HiltonPEPParser
 
 PARSERS: dict[str, type[BaseParser]] = {
     "PEP": HiltonPEPParser,              # Hilton
-    "AGILYSYS": MarriottAgilysysParser,  # Marriott (no sample yet)
+    "AGILYSYS": MarriottAgilysysParser,  # Marriott
     "HOTELKEY": IHGHotelKeyParser,       # IHG
     "OPERA": IHGOperaParser,             # IHG
     "CHOICEADV": ChoiceAdvantageParser,  # Choice
@@ -47,7 +48,7 @@ def detect_pms(text: str) -> Optional[str]:
         return "CHOICEADV"
     if "trial_balance" in low or ("trial balance" in low and "balance yesterday" in low):
         return "OPERA"
-    if re.search(r"\bagilysys\b", low):
+    if "agilysys" in low or ("ledger summary" in low and "transaction type :" in low):
         return "AGILYSYS"
     if re.search(r"\bsynxis\b", low):
         return "SYNXIS"

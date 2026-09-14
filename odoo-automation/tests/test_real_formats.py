@@ -168,3 +168,39 @@ def test_pdf_extraction_matches_fixture_totals():
     assert ch.total("ledger") == Decimal("-245.12")
     op = get_parser("OPERA").parse(SAMPLES / "CANDLEWOOD-MOORE_2025-11-09_OperaTrialBalance.pdf", "X")
     assert op.total("revenue") == Decimal("1629.74")
+
+
+# ------------------------------------------------------------------ Agilysys (Marriott)
+@pytest.fixture(scope="module")
+def agilysys():
+    return get_parser("AGILYSYS").parse(FIXTURES / "agilysys_ledger_summary.txt", "OKCAW")
+
+
+def test_agilysys_rows(agilysys):
+    assert detect_pms(read_text(FIXTURES / "agilysys_ledger_summary.txt")) == "AGILYSYS"
+    assert agilysys.business_date == date(2026, 7, 8)             # Start Date, not the print date 07/09
+    assert agilysys.property_name == "SpringHill Suites By Marriott Oklahoma City Airport West"
+    assert agilysys.warnings == []
+    rows = [(l.section, l.code, l.label, l.amount) for l in agilysys.lines]
+    assert ("settlement", "MC", "MasterCard", Decimal("597.48")) in rows           # city ledger payment, sign flipped
+    assert ("settlement", "VI", "Visa", Decimal("2540.23")) in rows                # guest ledger payment
+    assert ("settlement", "BV", "Marriott Bonvoy Redemption", Decimal("45.98")) in rows
+    assert ("revenue", "RP", "Room Charge-Pleas Trans", Decimal("7089.23")) in rows
+    assert ("revenue", "C3", "Guestroom Cancellations", Decimal("-108.30")) in rows
+    assert ("tax", "T11E", "Occupancy Sales Tax 9.25% Ex", Decimal("456.25")) in rows   # code glued to label
+    assert ("tax", "T21E", "State Occupancy Tax 4.5% Ex", Decimal("240.74")) in rows
+    assert ("ledger", "", "City Ledger Net Change", Decimal("-679.66")) in rows         # 351.49 -> (328.17)
+    assert ("ledger", "", "Deposit Ledger Net Change", Decimal("456.18")) in rows       # (456.18) -> 0.00
+    assert ("ledger", "", "Guest Ledger Net Change", Decimal("3313.01")) in rows        # 23,190.57 -> 26,503.58
+    assert all(l.section == "transfer" for l in agilysys.lines if "Transfer" in l.label)
+    assert agilysys.total("transfer") == 0
+    assert agilysys.stats["Guest Ledger Revenue Total"] == Decimal("8027.90")
+
+
+def test_agilysys_totals_and_balance(agilysys):
+    assert agilysys.total("revenue") + agilysys.total("tax") == Decimal("7944.72")
+    assert agilysys.total("settlement") == Decimal("4855.19")
+    assert agilysys.total("ledger") == Decimal("3089.53")
+    entry = GLMapping.load(CONFIG / "marriott_agilysys.example.yaml").build_entry(agilysys)
+    assert entry.imbalance == 0
+    assert entry.ref == "AGILYSYS-OKCAW-2026-07-08"

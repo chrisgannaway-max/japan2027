@@ -1,7 +1,7 @@
 # Odoo accounting automation: approach and findings
 
 Prepared from Harshil's email and the sample night-audit reports (Hilton PEP, choiceADVANTAGE,
-HotelKey, OPERA). Marriott (Agilysys) and Wyndham (SynXis) samples are still needed.
+HotelKey, OPERA, Agilysys). Only the Wyndham (SynXis) sample is still needed.
 
 ## 1. What we are replacing
 
@@ -16,7 +16,7 @@ into it instead of generating import files.
 
 ## 2. What the samples showed
 
-All four packs carry the same information in different clothes: revenue by code, taxes,
+All five packs carry the same information in different clothes: revenue by code, taxes,
 payments by type, and the movement of the PMS ledgers (guest ledger, city/AR ledger,
 advance deposits). Each report also carries its own control totals, and on every sample the
 identity **revenue + tax - payments = change in ledgers** holds to the cent. That identity is
@@ -28,6 +28,7 @@ what makes the journal entry balance without any plug.
 | Choice / choiceADVANTAGE | Night-audit pack, needs **Final Transaction Closeout** and **Hotel Journal Summary** | Only codes with activity print. Direct-bill and AR credit applications are internal transfers. |
 | IHG / HotelKey         | **Trial Balance Report** (e-mailed PDF)            | Folio-centric signs (charges debit, payments credit); "(Offset)" rows are the ledgers. Self-balancing. |
 | IHG / OPERA            | Daily **Trial Balance**                            | Payments negative; ledger movement = Balance Today - Yesterday. Direct bill is a transfer to AR. |
+| Marriott / Agilysys Stay | **Ledger Summary**, Group By: Ledger             | One block per ledger with beginning/ending balances. Transfers net to zero. Has a GL CODE column: if filled in Agilysys, mapping becomes a direct code lookup. |
 
 Reports that are *not* needed for the entry: PEP and HotelKey "Hotel Statistics", the guest
 lists, aging and tax-exempt pages of the Choice pack (they are read only for occupancy/ADR
@@ -82,7 +83,7 @@ mind if the preference is to stay entirely inside Odoo. Bills stay in draft unti
 
 ## 6. Open questions for Shirish
 
-1. Marriott (Agilysys) and Wyndham (SynXis) sample packs.
+1. The Wyndham (SynXis) sample pack, and the Hilton Excel template the GMs fill in.
 2. Two or three **consecutive** days per property, including a day with direct-bill
    activity and a day with an AR payment, to confirm how each PMS reports transfers (PEP
    "BILL TO COMPANY", OPERA "AR Ledger Payments").
@@ -90,8 +91,10 @@ mind if the preference is to stay entirely inside Odoo. Bills stay in draft unti
 4. Company structure in Odoo: one company per hotel, or one company with analytic accounts?
 5. The chart of accounts, or a go-ahead to propose a USALI-style one. The Hilton Excel
    template would show how the spreadsheet maps to accounts today.
-6. Report delivery per PMS: HotelKey already e-mails; can PEP and choiceADVANTAGE schedule
-   e-mail exports? Where should the shared inbox / drop folder live?
+6. Report delivery: one shared mailbox that every PMS e-mails its pack to nightly (HotelKey
+   already does; PEP, choiceADVANTAGE, OPERA and Agilysys can schedule exports), with a
+   morning exception report listing properties that did not report or did not balance.
+   Preferred over a per-property upload site, which would keep a manual nightly step.
 7. Approval policy: auto-post night-audit entries after a trial period, or always review?
    Same question for bills above a threshold.
 8. Invoice volume per month and where invoices arrive today.
@@ -103,16 +106,16 @@ mind if the preference is to stay entirely inside Odoo. Bills stay in draft unti
 
 | Phase | Scope                                                                   | Depends on               |
 |-------|-------------------------------------------------------------------------|--------------------------|
-| 0     | Parsers for the four sampled PMSs (done); connect to an Odoo sandbox; dump chart of accounts | API access |
+| 0     | Parsers for the five sampled PMSs (done); connect to an Odoo sandbox; dump chart of accounts | API access |
 | 1     | OKCON (PEP) end to end, draft entries, one week in parallel with the spreadsheet | chart of accounts |
-| 2     | TXI47, OKCMD, Candlewood live; Agilysys and SynXis parsers               | samples, delivery method |
+| 2     | TXI47, OKCMD, Candlewood, OKCAW live; SynXis parser                      | SynXis sample, delivery method |
 | 3     | Invoice intake for one property; tune vendor matching and categories     | invoice samples          |
 | 4     | Scheduling and report collection; switch pilots to auto-post             |                          |
 | 5     | Roll out to all properties                                               |                          |
 
 ## 8. What exists in this repo now
 
-Parsers for PEP, choiceADVANTAGE, HotelKey and OPERA tested on the real samples (entries balance
+Parsers for PEP, choiceADVANTAGE, HotelKey, OPERA and Agilysys tested on the real samples (entries balance
 to the cent), GL mapping engine, idempotent journal creation, Odoo client for both API
 styles, invoice extraction pipeline and draft bill creation, CLI with auto-detection and
 `.eml` support, example configs, tests. See `README.md` for usage.

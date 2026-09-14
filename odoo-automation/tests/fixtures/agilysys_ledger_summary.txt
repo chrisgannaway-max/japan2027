@@ -1,0 +1,188 @@
+===== PAGE 1 =====
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                  Agilysys - Stay                                                                               
+    07/09/2026 08:47                                                                                                                                          Ledger Summary    
+                                                                                                                                                                                
+    SpringHill Suites By Marriott Oklahoma City Airport                                                                                                                         
+    West                                           Property Id : SpringHill Suites By Marriott Oklahoma City Airport West || Start Date : Jul 08, 2026 || End Date : Jul 08, 2026 || Group By : Ledger || Ledger
+                                                                                        Type : All || Transaction Type : All || Transaction Items : All || Inventory Items : All || Payment Methods : All
+                                                                                                                                                                                
+                                                                                                                                                                                
+     TRANSACTION  ITEM           TRANSACTION  CODE           GL CODE                    AMOUNT                      BEGINNING                   ENDING                          
+       CATEGORY  : CITY                                                                                                                                                         
+                                                                                                                                                                                
+                                                                                                                                          $0.00                       $0.00     
+         SUBCATEGORY  : 2026-07-08                                                                                                                                              
+                                                                                                                                                                                
+                                                                                                                                        $351.49                    $(328.17)    
+          TRANSACTION  TYPE : PAYMENTS                                                                                                                                          
+                                                                                                                                                                                
+                                                                                                           $(602.48)                      $0.00                       $0.00     
+     Cash Payment                CA                                                                          $(3.00)                      $0.00                       $0.00     
+                                                                                                                                                                                
+     MasterCard                  MC                                                                        $(597.48)                      $0.00                       $0.00     
+     Visa                        VI                                                                          $(2.00)                      $0.00                       $0.00     
+                                                                                                                                                                                
+          TRANSACTION  TYPE : REVENUE                                                                                                                                           
+                                                                                                                                                                                
+                                                                                                            $(83.18)                      $0.00                       $0.00     
+     City Tax 4.125% Ex          T31E                                                                         $1.03                       $0.00                       $0.00     
+                                                                                                                                                                                
+     F&B Package Expense         FH                                                                           $0.00                       $0.00                       $0.00     
+     F&B Package Rev             FG                                                                           $0.00                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Guestroom Cancellations     C3                                                                        $(108.30)                      $0.00                       $0.00     
+     Market Beverage             PJ                                                                          $(6.72)                      $0.00                       $0.00     
+                                                                                                                                                                                
+     Market Packaged Food        PI                                                                           $2.88                       $0.00                       $0.00     
+     Occupancy Sales Tax 0% Ex   T12E                                                                         $0.00                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Occupancy Sales Tax 9.25% Ex T11E                                                                        $2.28                       $0.00                       $0.00     
+     Room Charge-G.N.S           RN                                                                          $24.70                       $0.00                       $0.00     
+                                                                                                                                                                                
+                                                                                                                                                                 1 / 4          
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+===== PAGE 2 =====
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+     07/09/2026 08:47                                                             Agilysys - Stay                                                             Ledger Summary    
+                                                                                                                                                                                
+     SpringHill Suites By Marriott Oklahoma City                                                                                                                                
+     Airport West                                                                                                                                                               
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+     TRANSACTION  ITEM           TRANSACTION  CODE           GL CODE                    AMOUNT                      BEGINNING                   ENDING                          
+                                                                                                                                                                                
+     Sales Tax 4.125% Ex         T91E                                                                        $(0.16)                      $0.00                       $0.00     
+     State Occupancy Tax 4.5% Ex T21E                                                                         $1.11                       $0.00                       $0.00     
+                                                                                                                                                                                
+          TRANSACTION  TYPE : TRANSFERS                                                                                                                                         
+                                                                                                              $6.00                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Transfer from GUESTLEDGER                                                                                $6.00                       $0.00                       $0.00     
+       CATEGORY  : DEPOSIT                                                                                                                                                      
+                                                                                                                                                                                
+                                                                                                                                          $0.00                       $0.00     
+         SUBCATEGORY  : 2026-07-08                                                                                                                                              
+                                                                                                                                                                                
+                                                                                                                                       $(456.18)                      $0.00     
+          TRANSACTION  TYPE : PAYMENTS                                                                                                                                          
+                                                                                                                                                                                
+                                                                                                           $(400.06)                      $0.00                       $0.00     
+                                                                                                                                                                                
+     Cash Payment                CA                                                                        $(142.59)                      $0.00                       $0.00     
+     MasterCard                  MC                                                                        $(257.47)                      $0.00                       $0.00     
+                                                                                                                                                                                
+          TRANSACTION  TYPE : TRANSFERS                                                                                                                                         
+                                                                                                            $856.24                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Transfer to GUESTLEDGER                                                                                $856.24                       $0.00                       $0.00     
+       CATEGORY  : GUEST                                                                                                                                                        
+                                                                                                                                                                                
+                                                                                                                                          $0.00                       $0.00     
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                 2 / 4          
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+===== PAGE 3 =====
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+     07/09/2026 08:47                                                             Agilysys - Stay                                                             Ledger Summary    
+                                                                                                                                                                                
+     SpringHill Suites By Marriott Oklahoma City                                                                                                                                
+     Airport West                                                                                                                                                               
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+     TRANSACTION  ITEM           TRANSACTION  CODE           GL CODE                    AMOUNT                      BEGINNING                   ENDING                          
+                                                                                                                                                                                
+         SUBCATEGORY  : 2026-07-08                                                                                                                                              
+                                                                                                                                      $23,190.57                 $26,503.58     
+                                                                                                                                                                                
+          TRANSACTION  TYPE : PAYMENTS                                                                                                                                          
+                                                                                                          $(3,852.65)                     $0.00                       $0.00     
+                                                                                                                                                                                
+     American Express            AX                                                                        $(583.08)                      $0.00                       $0.00     
+     Marriott Bonvoy Redemption  BV                                                                         $(45.98)                      $0.00                       $0.00     
+                                                                                                                                                                                
+     MasterCard                  MC                                                                        $(683.36)                      $0.00                       $0.00     
+     Visa                        VI                                                                       $(2,540.23)                     $0.00                       $0.00     
+                                                                                                                                                                                
+          TRANSACTION  TYPE : REVENUE                                                                                                                                           
+                                                                                                           $8,027.90                      $0.00                       $0.00     
+                                                                                                                                                                                
+     City Tax 4.125% Ex          T31E                                                                       $220.68                       $0.00                       $0.00     
+                                                                                                                                                                                
+     F&B Package Expense         FH                                                                           $0.00                       $0.00                       $0.00     
+     F&B Package Rev             FG                                                                           $0.00                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Market Beverage             PJ                                                                          $17.28                       $0.00                       $0.00     
+     Market Frozen Food          MZ                                                                           $2.88                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Occupancy Sales Tax 0% Ex   T12E                                                                         $0.00                       $0.00                       $0.00     
+     Occupancy Sales Tax 9.25% Ex T11E                                                                      $456.25                       $0.00                       $0.00     
+                                                                                                                                                                                
+     Room Charge-Pleas Trans     RP                                                                        $7,089.23                      $0.00                       $0.00     
+     Sales Tax 4.125% Ex         T91E                                                                         $0.84                       $0.00                       $0.00     
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                 3 / 4          
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+===== PAGE 4 =====
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+     07/09/2026 08:47                                                             Agilysys - Stay                                                             Ledger Summary    
+                                                                                                                                                                                
+     SpringHill Suites By Marriott Oklahoma City                                                                                                                                
+     Airport West                                                                                                                                                               
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+     TRANSACTION  ITEM           TRANSACTION  CODE           GL CODE                    AMOUNT                      BEGINNING                   ENDING                          
+                                                                                                                                                                                
+     State Occupancy Tax 4.5% Ex T21E                                                                       $240.74                       $0.00                       $0.00     
+          TRANSACTION  TYPE : TRANSFERS                                                                                                                                         
+                                                                                                                                                                                
+                                                                                                           $(862.24)                      $0.00                       $0.00     
+     Transfer from DEPOSITLEDGER                                                                           $(856.24)                      $0.00                       $0.00     
+                                                                                                                                                                                
+     Transfer to CITYLEDGER                                                                                  $(6.00)                      $0.00                       $0.00     
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                 4 / 4          
+                                                                                                                                                                                
+                                                                                                                                                                                
+                                                                                                                                                                                

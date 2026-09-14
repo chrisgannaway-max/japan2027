@@ -39,10 +39,12 @@ properties:
     company: Example Hotel LLC
     gl_mapping: gl_mapping/ihg_opera.example.yaml
 
-  - code: CY-EXAMPLE
-    name: Courtyard Example (no sample report yet)
+  - code: OKCAW
+    name: SpringHill Suites by Marriott Oklahoma City Airport West
     brand: Marriott
     pms: AGILYSYS
+    pms_property_name: SpringHill Suites By Marriott Oklahoma City Airport West   # Agilysys prints the name, no id
+    company: Example Hotel LLC
     gl_mapping: gl_mapping/marriott_agilysys.example.yaml
 
   - code: LQ-EXAMPLE

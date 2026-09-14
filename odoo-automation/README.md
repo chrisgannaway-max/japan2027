@@ -12,7 +12,7 @@ Automation for two manual processes at the hotels:
 
 ## Status
 
-Parsers are built and tested on real sample reports for four of the six PMS formats. Each
+Parsers are built and tested on real sample reports for five of the six PMS formats. Each
 sample produces an entry that balances to the cent against the report's own control totals.
 
 | Brand    | PMS              | Report the parser reads                         | Sample     | Parser key  |
@@ -21,7 +21,7 @@ sample produces an entry that balances to the cent against the report's own cont
 | Choice   | choiceADVANTAGE  | Night-audit pack: **Final Transaction Closeout** + **Hotel Journal Summary** (+ Hotel Statistics) | TXI47 | `CHOICEADV` |
 | IHG      | HotelKey         | **Trial Balance Report** (PDF, or the .eml it is attached to) | OKCMD | `HOTELKEY` |
 | IHG      | OPERA            | Daily **Trial Balance** (trial_balance)          | Candlewood Moore | `OPERA` |
-| Marriott | Agilysys         | generic label+amount parser until a sample arrives | none    | `AGILYSYS`  |
+| Marriott | Agilysys Stay    | **Ledger Summary** grouped by ledger (City / Deposit / Guest) | OKCAW | `AGILYSYS`  |
 | Wyndham  | SynXis           | generic label+amount parser until a sample arrives | none    | `SYNXIS`    |
 
 Account codes in the mapping files are USALI-style placeholders until the Odoo chart of
@@ -161,6 +161,11 @@ Journal entry PEP-OKCON-2025-11-10  date=2025-11-10  journal=NA  company=Example
 - **HotelKey Trial Balance**: folio-centric (charges debit, payments credit); the parser flips
   the sign of ASSET rows. `(Offset)` accounts are the ledgers. Card brands all share code
   `FPCC`, so card rules match on name. Reports arrive by e-mail; `.eml` is accepted directly.
+- **Agilysys Stay Ledger Summary**: one block per PMS ledger with BEGINNING/ENDING balances
+  (the ledger movement) and PAYMENTS / REVENUE / TRANSFERS types. The REVENUE type mixes
+  revenue and tax items; taxes are recognised by code `T…` and the word Tax. Transfers
+  between ledgers net to zero and are not booked. The report has a GL CODE column, empty on
+  the sample: if GL codes are maintained in Agilysys the mapping can use them directly.
 - **OPERA Trial Balance**: payments are negative on the report; ledger movement = Balance
   Today - Balance Yesterday per ledger. "Direct Billing/City Ledger" is a transfer. If AR
   payments show up under "AR Ledger Payments" they are booked to an AR receipts clearing
@@ -198,7 +203,8 @@ pms_to_odoo/
     choice.py          choiceADVANTAGE night-audit pack
     hotelkey.py        HotelKey Trial Balance Report
     opera.py           OPERA daily Trial Balance
-    brands.py          Agilysys / SynXis placeholders (generic table parser)
+    agilysys.py        Agilysys Stay Ledger Summary
+    brands.py          SynXis placeholder (generic table parser)
     generic_table.py   config-driven label+amount parser
     excel_template.py  GM spreadsheet reader
   invoices/            Claude extraction (schema-validated) and vendor bill creation

@@ -25,7 +25,8 @@ from ..models import DailyReport, ReportLine
 
 # Money tokens as printed by the PMSs we have seen:
 #   1,234.56   $1,234.56   -$308.00   -USD5.61   USD0.00   (1,234.56)   - 64.06   123.45-   50.00CR
-MONEY_TOKEN = r"\(?-?\s?(?:USD|\$)?-?\d[\d,]*\.\d{2}\)?(?:-|\s?CR)?"
+#   $(3.00)  ($3.00)  and never the "4.12" inside a rate like "4.125%"
+MONEY_TOKEN = (r"(?<![\w.])(?:USD|\$)?\s?\(?\s?-?\s?(?:USD|\$)?\s?-?\d[\d,]*\.\d{2}(?![\d%])\)?(?:-|\s?CR)?")
 MONEY_RE = re.compile(MONEY_TOKEN, re.IGNORECASE)
 # statistics: integers and percentages ("216", "2,160", "99.53%", "42.86 %")
 STAT_TOKEN = r"-?\d[\d,]*(?:\.\d+)?\s?%?"
@@ -41,7 +42,7 @@ def parse_amount(text: str) -> Optional[Decimal]:
     """Parse one money/number token; None if it is not numeric."""
     if text is None:
         return None
-    t = text.strip()
+    t = text.strip().replace("USD", "").replace("$", "").replace(",", "").replace(" ", "").rstrip("%")
     if not t:
         return None
     neg = False
@@ -51,10 +52,7 @@ def parse_amount(text: str) -> Optional[Decimal]:
         neg, t = True, t[:-2]
     if t.endswith("-"):
         neg, t = True, t[:-1]
-    t = t.replace("USD", "").replace("$", "").replace(",", "").replace(" ", "").rstrip("%")
-    if t.startswith("-"):
-        neg, t = (not neg), t[1:]
-    if t.startswith("-"):          # "-$-5" style double sign guard
+    while t.startswith("-"):
         neg, t = (not neg), t[1:]
     if not re.fullmatch(r"\d+(?:\.\d+)?", t):
         return None
