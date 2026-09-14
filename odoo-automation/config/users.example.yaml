@@ -1,0 +1,30 @@
+# Portal users.  Copy to users.yaml.  Generate hashes with:  python -m portal hash 'the password'
+# Plain `password:` is accepted only so the first login works; replace it with password_hash.
+users:
+  - username: admin
+    password: admin            # CHANGE ME
+    role: admin
+  - username: okcon
+    password: okcon            # CHANGE ME
+    role: manager
+    properties: [OKCON]
+  - username: txi47
+    password: txi47
+    role: manager
+    properties: [TXI47]
+  - username: okcmd
+    password: okcmd
+    role: manager
+    properties: [OKCMD]
+  - username: candlewood
+    password: candlewood
+    role: manager
+    properties: [CANDLEWOOD-MOORE]
+  - username: okcaw
+    password: okcaw
+    role: manager
+    properties: [OKCAW]
+  - username: lq89051
+    password: lq89051
+    role: manager
+    properties: [LQ89051]

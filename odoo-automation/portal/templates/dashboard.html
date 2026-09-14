@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% from "_status.html" import pill %}{% block title %}Dashboard {{ day }}{% endblock %}
+{% block body %}
+<div class="row" style="justify-content:space-between">
+  <h1>Night audit for {{ day.strftime('%A, %b %d, %Y') }}</h1>
+  <form method="get" action="/" class="row">
+    <a class="btn secondary" href="/?day={{ prev_day }}">‹ previous</a>
+    <input id="day" type="date" name="day" value="{{ day }}"><button class="btn secondary" type="submit">Go</button>
+    <a class="btn secondary" href="/?day={{ next_day }}">next ›</a>
+  </form>
+</div>
+<div class="card">
+  <div class="tablewrap"><table>
+    <thead><tr><th>Property</th><th>PMS</th><th>Status</th><th class="n">Entry total</th><th>Uploaded</th><th>Notes</th><th></th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><b>{{ row.code }}</b><br><span class="small">{{ row.name }}</span></td>
+        <td>{{ row.pms }}</td>
+        <td>{% if row.run %}{{ pill(row.run.status) }}{% if row.run.posted_at %} <span class="pill ok">posted</span>{% elif row.run.approved_at %} <span class="pill ok">approved</span>{% elif row.run.exported_at %} <span class="pill muted">exported</span>{% endif %}{% else %}<span class="pill bad">Not uploaded</span>{% endif %}</td>
+        <td class="n">{% if row.result and row.result.entry %}{{ '{:,.2f}'.format(row.result.entry.total_debit) }}{% endif %}</td>
+        <td class="small">{% if row.run %}{{ row.run.created_at }}<br>{{ row.run.uploaded_by }}{% endif %}</td>
+        <td class="small">{% if row.result %}{{ row.result.message[:160] }}{% for w in row.result.warnings %}<br>⚠ {{ w }}{% endfor %}{% endif %}</td>
+        <td>{% if row.run %}<a href="/runs/{{ row.run.id }}">review</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+</div>
+<div class="card">
+  <h2>Export for {{ day }}</h2>
+  <p class="small">{{ ready|length }} balanced entr{{ 'y' if ready|length == 1 else 'ies' }}. The Odoo format is the Journal Entries import layout; the flat format is one row per line for Excel.</p>
+  <div class="row">
+    <a class="btn" href="/export/{{ day }}.csv?fmt=odoo">Download Odoo import CSV</a>
+    <a class="btn secondary" href="/export/{{ day }}.csv?fmt=odoo&approved=yes">Approved only</a>
+    <a class="btn secondary" href="/export/{{ day }}.csv?fmt=flat">Flat CSV</a>
+  </div>
+</div>
+{% if dates %}<p class="small">Days with uploads: {% for d in dates %}<a href="/?day={{ d }}">{{ d }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+{% endblock %}

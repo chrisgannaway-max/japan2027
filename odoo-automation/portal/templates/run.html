@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% from "_status.html" import pill %}{% block title %}{{ res.ref or run.file_name }}{% endblock %}
+{% block body %}
+<div class="row" style="justify-content:space-between">
+  <h1>{{ res.ref or run.file_name }}</h1>
+  <div>{{ pill(run.status) }}{% if run.posted_at %} <span class="pill ok">posted to Odoo #{{ run.odoo_move_id }}</span>{% elif run.approved_at %} <span class="pill ok">approved by {{ run.approved_by }}</span>{% endif %}{% if run.superseded %} <span class="pill muted">superseded by a newer upload</span>{% endif %}</div>
+</div>
+<div class="card">
+  <div class="row small">
+    <span><b>Property</b> {{ res.property_code or '—' }} {{ res.property_name }}</span>
+    <span><b>PMS</b> {{ res.pms or '—' }}</span>
+    <span><b>Business date</b> {{ res.business_date or '—' }}</span>
+    <span><b>File</b> {{ run.file_name }}{% for c in res.companions %} + {{ c.split('/')[-1] }}{% endfor %}</span>
+    <span><b>Uploaded</b> {{ run.created_at }} by {{ run.uploaded_by }}</span>
+  </div>
+  <p class="msg {% if run.status != 'ok' %}err{% endif %}">{{ res.message }}</p>
+  {% for w in res.warnings %}<p class="msg">⚠ {{ w }}</p>{% endfor %}
+  {% if user.is_admin %}
+  <div class="row">
+    {% if run.status == 'ok' and not run.approved_at %}<form method="post" action="/runs/{{ run.id }}/approve"><button class="btn" type="submit">Approve</button></form>{% endif %}
+    {% if run.status == 'ok' %}
+      <a class="btn secondary" href="/runs/{{ run.id }}.csv?fmt=odoo">Odoo import CSV</a>
+      <a class="btn secondary" href="/runs/{{ run.id }}.csv?fmt=flat">Flat CSV</a>
+      {% if odoo_enabled and not run.posted_at %}
+      <form method="post" action="/runs/{{ run.id }}/post" class="row"><select id="post_now" name="post_now"><option value="no">create as draft in Odoo</option><option value="yes">create and post in Odoo</option></select><button class="btn" type="submit">Send to Odoo</button></form>
+      {% endif %}
+    {% endif %}
+    <form method="post" action="/runs/{{ run.id }}/reprocess"><button class="btn secondary" type="submit">Re-run with current mapping</button></form>
+  </div>
+  {% endif %}
+</div>
+{% if entry_text %}
+<div class="card"><h2>Journal entry</h2><pre>{{ entry_text }}</pre></div>
+{% endif %}
+{% if res.coverage %}
+<div class="card">
+  <h2>Report lines and where they go</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Report line</th><th>Section</th><th class="n">Amount</th><th>Account</th></tr></thead>
+    <tbody>{% for label, section, amt, status in res.coverage %}{% if amt not in ('0.00', '-0.00') %}
+      <tr><td>{{ label }}</td><td>{{ section }}</td><td class="n">{{ amt }}</td><td>{% if status == 'UNMAPPED' %}<span class="pill warn">UNMAPPED</span>{% else %}{{ status }}{% endif %}</td></tr>
+    {% endif %}{% endfor %}</tbody></table></div>
+</div>
+{% endif %}
+{% if res.stats %}
+<div class="card"><h2>Control totals and statistics</h2>
+  <div class="tablewrap"><table><tbody>{% for k, v in res.stats.items() %}<tr><td>{{ k }}</td><td class="n">{{ '{:,.2f}'.format(v) }}</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endif %}
+{% endblock %}

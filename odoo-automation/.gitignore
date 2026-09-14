@@ -9,3 +9,4 @@ config/gl_mapping/*.yaml
 samples/*
 !samples/README.md
 .env
+data/

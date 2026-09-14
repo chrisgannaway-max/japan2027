@@ -1,0 +1,4 @@
+{% macro pill(status) -%}
+  {% set cls = 'ok' if status == 'ok' else ('warn' if status in ('unmapped', 'unbalanced') else ('muted' if status in ('unrecognised', 'wrong_pms') else 'bad')) %}
+  <span class="pill {{ cls }}">{{ STATUS_LABELS.get(status, status) }}</span>
+{%- endmacro %}

@@ -180,7 +180,33 @@ Journal entry PEP-OKCON-2025-11-10  date=2025-11-10  journal=NA  company=Example
   balance. DIRECT BILL is a transfer. The GL Account column is empty on the sample; if set in
   SynXis it is captured for direct mapping.
 
-## Scheduling
+## Web portal
+
+Managers upload the night-audit pack; admin reviews, approves and exports.
+
+```bash
+cp config/users.example.yaml config/users.yaml      # one login per property + an admin
+python -m portal hash 'a strong password'            # paste the hash into users.yaml
+PORTAL_SECRET=$(openssl rand -hex 32) python -m portal serve --port 8000
+# or:  docker build -t night-audit . && docker run -p 8000:8000 -v $PWD/data:/data night-audit
+```
+
+| Who      | Page               | What happens                                                                       |
+|----------|--------------------|------------------------------------------------------------------------------------|
+| Manager  | `/upload`          | Picks their property (or lets the report identify it), uploads PDF/CSV/EML. The pack is parsed, mapped and balanced on the spot and the result is shown: balanced, needs mapping, does not balance, or not a report we book. |
+| Admin    | `/` dashboard      | One row per property for a business date: not uploaded / balanced / needs mapping / posted, entry total, warnings. |
+| Admin    | `/runs/<id>`       | Review screen: T-account, every report line and the account it hits, control totals. Approve, download the Odoo import CSV, send to Odoo (when `ODOO_*` is configured), or re-run after editing a mapping file. |
+| Admin    | `/export/<day>.csv`| All balanced (or approved-only) entries for the day in Odoo's Journal Entries import layout, or a flat one-row-per-line CSV for Excel. |
+
+Rules: managers only see their own properties; a new upload for the same property and day
+supersedes the previous unposted run; uploads are kept under `data/uploads/` and the run
+history in `data/portal.db`. Check the Odoo import column headers once against the import
+template of the client's Odoo version (Accounting > Journal Entries > Import > template).
+
+The same pipeline (`pms_to_odoo/pipeline.py`) drives the CLI `batch` command and the portal,
+so a file behaves identically on either path.
+
+## Scheduling (alternative to the portal)
 
 The CLI is stateless, so any scheduler works: a cron job or Windows Task Scheduler running
 `batch --dir` against a folder where the packs land (a mailbox rule saving attachments, an
@@ -217,7 +243,10 @@ pms_to_odoo/
     generic_table.py   config-driven label+amount parser
     excel_template.py  GM spreadsheet reader
   invoices/            Claude extraction (schema-validated) and vendor bill creation
+  pipeline.py          detect -> parse -> map -> balance, shared by CLI and portal
+  export.py            Odoo Journal Entries import CSV / flat CSV
   cli.py               inspect / daily / batch / invoice / accounts / check
+portal/                FastAPI site: login, manager upload, admin dashboard, review, export
 config/                property list, GL mappings per PMS, expense categories, Excel cell map
 tools/                 extract_layout_text.py (build fixtures, debug parsing)
 tests/                 fixtures + tests
