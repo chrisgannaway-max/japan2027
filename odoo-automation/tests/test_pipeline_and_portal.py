@@ -175,3 +175,15 @@ def test_a_day_is_not_handed_out_twice(client):
     again = client.get("/export/2025-11-10.csv?fmt=odoo&again=yes")
     assert "PEP-OKCON-2025-11-10" in again.text
     assert len(again.text.strip().splitlines()) - 1 == 43
+
+
+def test_ambiguous_property_name_is_held_not_guessed(props):
+    """Two hotels at the same airport: a name that matches both must not pick one."""
+    from pms_to_odoo.pipeline import match_property
+    from pathlib import Path as _P
+    twins = dict(props)
+    twins["OKCAW2"] = dict(props["OKCAW"]) | {
+        "code": "OKCAW2", "pms_property_name": "SpringHill Suites By Marriott Oklahoma City Airport"}
+    report = "SpringHill Suites By Marriott Oklahoma City Airport West"
+    assert match_property(twins, _P("x.pdf"), "", report, "AGILYSYS") is None   # held, not guessed
+    assert match_property(props, _P("x.pdf"), "", report, "AGILYSYS") == "OKCAW"  # unambiguous still works

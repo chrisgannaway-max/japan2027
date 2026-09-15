@@ -126,10 +126,18 @@ def match_property(props: dict[str, dict], file: Path, report_id: str, report_na
     for code, p in cands.items():
         if report_id and str(p.get("pms_property_id", "")).upper() == report_id.upper():
             return code
-    for code, p in cands.items():
-        nm = str(p.get("pms_property_name", "")).lower()
-        if nm and report_name and nm in report_name.lower():
-            return code
+    if report_name:
+        # Name matching must be unambiguous.  Several of these hotels sit at the same airport,
+        # and one configured name can be a substring of another property's report ("... Airport"
+        # inside "... Airport West").  Two matches means we do not know which hotel this is, and
+        # guessing posts one hotel's night into another's books, silently.  Hold instead.
+        hits = [code for code, p in cands.items()
+                if str(p.get("pms_property_name", "")).lower()
+                and str(p.get("pms_property_name", "")).lower() in report_name.lower()]
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            return None
     stem = file.stem.upper()
     for code in sorted(cands, key=len, reverse=True):
         if stem.startswith(code.upper()):
