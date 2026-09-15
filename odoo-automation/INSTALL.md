@@ -237,6 +237,29 @@ leave it; changing it later logs everyone out on purpose.
 
 Health check for the host: `GET /health` returns `ok`.
 
+### On Render specifically
+
+*New → Web Service*, connect the GitHub repository, then:
+
+| Setting | Value |
+|---|---|
+| Language | **Docker** |
+| Root Directory | **`odoo-automation`** — the app is a subdirectory; without this the build finds no Dockerfile |
+| Branch | whichever branch holds the code |
+| Instance Type | Free to try it; **Standard (2 GB)** before anyone relies on it, and required if you want OCR |
+| Health Check Path | `/health` |
+| Persistent Disk | none — that is what the database and storage settings are for |
+
+Add the environment variables above under *Environment*, and let Render generate `PORTAL_SECRET`
+for you (*Generate* next to the value) so it is never typed anywhere.
+
+The container listens on whatever port Render gives it (`$PORT`, falling back to 8000), so there
+is nothing to configure there. Pushing to the chosen branch redeploys automatically.
+
+A free instance sleeps after about fifteen minutes and takes a few seconds to wake. Harmless
+for a trial, wrong for hotels uploading at 3 a.m. — a night auditor will read the delay as the
+site being broken and go back to the spreadsheet.
+
 ---
 
 ## 8. Move the configuration into the database

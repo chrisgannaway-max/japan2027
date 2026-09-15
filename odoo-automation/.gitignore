@@ -3,6 +3,9 @@ __pycache__/
 .pytest_cache/
 logs/
 config/properties.yaml
+config/users.yaml
+config/vendor_accounts.yaml
+config/vendor_templates.yaml
 config/expense_categories.yaml
 config/gl_mapping/*.yaml
 !config/gl_mapping/*.example.yaml
