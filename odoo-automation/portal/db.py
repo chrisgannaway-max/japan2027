@@ -78,6 +78,19 @@ CREATE TABLE IF NOT EXISTS accounts (
     source TEXT,
     updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS intake (
+    sha256 TEXT PRIMARY KEY,
+    message_id TEXT,
+    sender TEXT,
+    recipient TEXT,
+    subject TEXT,
+    received_at TEXT,
+    file_name TEXT,
+    stored_path TEXT,
+    run_id INTEGER,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS intake_message ON intake(message_id);
 CREATE TABLE IF NOT EXISTS vendor_accounts (
     vendor_key TEXT PRIMARY KEY,
     vendor_name TEXT,
@@ -103,6 +116,30 @@ class Database:
 
     def describe(self) -> str:
         return self.pool.describe()
+
+    # ------------------------------------------------------------- arriving e-mail
+    def intake_seen(self, sha256: str) -> Optional[dict]:
+        """The row for an attachment we have already taken in, or None.  Keyed on the bytes, so
+        the same report forwarded three times by three people is still seen once."""
+        with self._conn() as c:
+            r = c.execute("SELECT * FROM intake WHERE sha256=?", (sha256,)).fetchone()
+        return dict(r) if r else None
+
+    def record_intake(self, *, sha256: str, message_id: str, sender: str, recipient: str,
+                      subject: str, received_at: Optional[str], file_name: str,
+                      stored_path: str, run_id: Optional[int]) -> None:
+        with self._conn() as c:
+            c.upsert("intake",
+                     ("sha256", "message_id", "sender", "recipient", "subject", "received_at",
+                      "file_name", "stored_path", "run_id", "created_at"),
+                     (sha256, message_id, sender, recipient, subject, received_at, file_name,
+                      stored_path, run_id, datetime.now().isoformat(timespec="seconds")),
+                     conflict="sha256")
+
+    def intake_for_run(self, run_id: int) -> Optional[dict]:
+        with self._conn() as c:
+            r = c.execute("SELECT * FROM intake WHERE run_id=?", (run_id,)).fetchone()
+        return dict(r) if r else None
 
     def add_run(self, *, uploaded_by: str, property_code: str, business_date: Optional[str], pms: str, ref: str,
                 status: str, message: str, file_name: str, stored_path: str, result_json: str) -> int:
