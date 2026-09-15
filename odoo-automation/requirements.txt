@@ -16,3 +16,6 @@ qrcode>=7.4
 
 # Optional. The AI invoice reader; everything works without it (INVOICE_READER=rules).
 #   pip install anthropic
+# Optional. PostgreSQL instead of SQLite; only needed when DATABASE_URL is set.
+#   pip install "psycopg[binary]"
+

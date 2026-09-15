@@ -12,7 +12,6 @@ pipeline keeps reading mappings from a path.
 from __future__ import annotations
 
 import os
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -21,6 +20,8 @@ import yaml
 
 from pms_to_odoo.mapping import GLMapping, MappingError
 from pms_to_odoo.pipeline import load_properties as load_properties_yaml, resolve
+
+from .sql import Pool, database_url
 
 from .auth import hash_password
 
@@ -49,19 +50,18 @@ class ConfigStore:
     def __init__(self, db_path: Path, data_dir: Path):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        url = str(db_path)
+        if not url.startswith(("sqlite:///", "postgres://", "postgresql://")):
+            url = database_url(Path(db_path).parent)
+        self.pool = Pool(url)
         with self._conn() as c:
             c.executescript(SCHEMA)
-            have = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
             for col, decl in (("email", "TEXT DEFAULT ''"), ("totp_secret", "TEXT DEFAULT ''"),
                               ("mfa_enabled", "INTEGER DEFAULT 0")):
-                if col not in have:                      # a database created before MFA existed
-                    c.execute(f"ALTER TABLE users ADD COLUMN {col} {decl}")
+                c.add_column_if_missing("users", col, decl)   # databases created before MFA existed
 
-    def _conn(self) -> sqlite3.Connection:
-        c = sqlite3.connect(str(self.db_path))
-        c.row_factory = sqlite3.Row
-        return c
+    def _conn(self):
+        return self.pool.connect()
 
     # ------------------------------------------------------------- properties
     def properties(self, include_disabled: bool = False) -> dict[str, dict]:

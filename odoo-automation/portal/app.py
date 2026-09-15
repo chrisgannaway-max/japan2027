@@ -38,6 +38,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
                     new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
+from . import storage
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -62,12 +63,15 @@ class State:
         self.mode = store_mode()                                   # "yaml" | "db"
         self.delivery = os.environ.get("DELIVERY_MODE", "download").lower()   # "download" | "odoo"
         self.db = Database(DATA / "portal.db")
+        self.storage = storage.build(DATA)
         self.store = ConfigStore(DATA / "portal.db", DATA) if self.mode == "db" else None
         self.signer = SessionSigner()
         self.pending = SessionSigner(max_age=300)     # the 5 minutes between password and MFA code
         self.throttle = LoginThrottle()
         self.odoo_enabled = bool(os.environ.get("ODOO_URL") and os.environ.get("ODOO_API_KEY"))
         self.reload_config()
+        print(f"[portal] config from {self.mode}; database: {self.db.describe()}; "
+              f"files: {self.storage.describe()}")
 
     def reload_config(self) -> None:
         mail.set_stored(self.db.settings())
@@ -316,19 +320,17 @@ async def upload(request: Request, user: User = Depends(require_user),
         raise HTTPException(403, "Property not allowed")
     results: list[tuple[int, RunResult]] = []
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    folder = DATA / "uploads" / (property_code or "unsorted") / stamp
-    folder.mkdir(parents=True, exist_ok=True)
-    saved: list[Path] = []
+    prefix = f"uploads/{property_code or 'unsorted'}/{stamp}"
+    saved: list[tuple[Path, str]] = []
     for f in files:
         name = re.sub(r"[^A-Za-z0-9._ -]", "_", Path(f.filename or "upload").name)
         if Path(name).suffix.lower() not in ALLOWED_SUFFIXES:
             results.append((0, RunResult(status="error", file_name=name, message="Only PDF, CSV, XLSX, EML or TXT files")))
             continue
-        target = folder / name
-        target.write_bytes(await f.read())
-        saved.append(target)
+        locator = state.storage.save(f"{prefix}/{name}", await f.read())
+        saved.append((state.storage.local_path(locator), locator))
     consumed: set[Path] = set()
-    for path in saved:                       # same folder, so SynXis pairs find each other
+    for path, locator in saved:              # same folder, so SynXis pairs find each other
         if path in consumed:
             continue
         res = process_file(path, state.props, property_code or None, allowed)
@@ -336,7 +338,7 @@ async def upload(request: Request, user: User = Depends(require_user),
         run_id = state.db.add_run(uploaded_by=user.username, property_code=res.property_code,
                                   business_date=res.business_date.isoformat() if res.business_date else None,
                                   pms=res.pms, ref=res.ref, status=res.status, message=res.message,
-                                  file_name=path.name, stored_path=str(path), result_json=res.to_json())
+                                  file_name=path.name, stored_path=locator, result_json=res.to_json())
         results.append((run_id, res))
     runs = state.db.recent_runs(20, None if user.is_admin else list(props))
     return render(request, "upload.html", props=props, runs=runs, results=results)
@@ -409,7 +411,7 @@ def reprocess(run_id: int, user: User = Depends(require_admin)):
     if not r:
         raise HTTPException(404)
     state.reload_config()                            # pick up mapping edits
-    res = process_file(Path(r["stored_path"]), state.props, r["property_code"] or None)
+    res = process_file(state.storage.local_path(r["stored_path"]), state.props, r["property_code"] or None)
     new_id = state.db.add_run(uploaded_by=user.username, property_code=res.property_code,
                               business_date=res.business_date.isoformat() if res.business_date else None,
                               pms=res.pms, ref=res.ref, status=res.status, message=res.message,
@@ -506,7 +508,8 @@ def invoices_page(request: Request, user: User = Depends(require_user)):
     return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None))
 
 
-def _create_invoice(path: Path, property_code: str, username: str, file_name: str) -> int:
+def _create_invoice(path: Path, property_code: str, username: str, file_name: str,
+                    locator: Optional[str] = None) -> int:
     """Read one invoice file and store it as a draft. Shared by the invoice page and the
     'this is actually an invoice' button on the night-audit page."""
     data, reader = extract_invoice_auto(path, VENDOR_TEMPLATES)
@@ -520,7 +523,8 @@ def _create_invoice(path: Path, property_code: str, username: str, file_name: st
     status, why = _invoice_status(fields)
     if why:
         fields["notes"] = f"{why}; {fields['notes']}"
-    inv_id = state.db.add_invoice(uploaded_by=username, file_name=file_name, stored_path=str(path), reader=reader,
+    inv_id = state.db.add_invoice(uploaded_by=username, file_name=file_name,
+                                  stored_path=locator or str(path), reader=reader,
                                   confidence=data.confidence, **fields)
     state.db.update_invoice(inv_id, status=status)
     return inv_id
@@ -548,16 +552,16 @@ async def invoice_upload(request: Request, user: User = Depends(require_user),
     if Path(name).suffix.lower() not in INVOICE_SUFFIXES:
         return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None,
                       error="Only PDF, PNG, JPG or TXT invoices"))
-    folder = DATA / "invoices" / (property_code or "unsorted") / datetime.now().strftime("%Y%m")
-    folder.mkdir(parents=True, exist_ok=True)
-    target = folder / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{name}"
-    target.write_bytes(await file.read())
+    key = (f"invoices/{property_code or 'unsorted'}/{datetime.now().strftime('%Y%m')}"
+           f"/{datetime.now().strftime('%Y%m%d-%H%M%S')}-{name}")
+    locator = state.storage.save(key, await file.read())
+    target = state.storage.local_path(locator)
     pms = _night_audit_report_in(target)
     if pms:
-        target.unlink(missing_ok=True)
+        state.storage.delete(locator)
         return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None,
                       error=f"That is a {pms} night-audit report, not an invoice. Upload it on the Night audit page."))
-    inv_id = _create_invoice(target, property_code, user.username, name)
+    inv_id = _create_invoice(target, property_code, user.username, name, locator)
     return RedirectResponse(f"/invoices/{inv_id}", status_code=303)
 
 
@@ -641,7 +645,8 @@ def invoice_post(inv_id: int, user: User = Depends(require_admin)):
     prop = state.props.get(inv["property_code"], {})
     try:
         client = OdooClient.connect(OdooSettings.from_env())
-        res = create_vendor_bill(data, client, inv["stored_path"], company=prop.get("company"),
+        res = create_vendor_bill(data, client, str(state.storage.local_path(inv["stored_path"])),
+                                 company=prop.get("company"),
                                  default_account=inv["account_code"] or None, create_missing_vendor=True)
     except OdooError as e:
         raise HTTPException(502, f"Odoo error: {e}") from e
@@ -859,7 +864,7 @@ async def mapping_save(request: Request, run_id: int, user: User = Depends(requi
     except ValueError as e:
         return RedirectResponse(f"/admin/mapping/{run_id}?err={e}", status_code=303)
     state.reload_config()
-    res2 = process_file(Path(r["stored_path"]), state.props, res.property_code)
+    res2 = process_file(state.storage.local_path(r["stored_path"]), state.props, res.property_code)
     new_id = state.db.add_run(uploaded_by=f"{user.username} (remapped)", property_code=res2.property_code,
                               business_date=res2.business_date.isoformat() if res2.business_date else None,
                               pms=res2.pms, ref=res2.ref, status=res2.status, message=res2.message,
@@ -940,7 +945,8 @@ def run_to_invoice(run_id: int, user: User = Depends(require_user)):
     if res.status != "looks_like_invoice":
         raise HTTPException(400, "That upload is not waiting to be moved")
     prop = res.property_code or (user.properties[0] if len(user.properties) == 1 else "")
-    inv_id = _create_invoice(Path(r["stored_path"]), prop, user.username, r["file_name"])
+    inv_id = _create_invoice(state.storage.local_path(r["stored_path"]), prop, user.username,
+                             r["file_name"], r["stored_path"])
     state.db.mark(run_id, superseded=1, status="moved_to_invoice",
                   message=f"moved to invoice #{inv_id} by {user.username}")
     return RedirectResponse(f"/invoices/{inv_id}", status_code=303)

@@ -329,6 +329,17 @@ choiceADVANTAGE can schedule report e-mails as well.
 python -m pytest -q
 ```
 
+The same suite runs against the other backends, which is how they are checked rather than
+assumed:
+
+```bash
+DATABASE_URL=postgresql://user:pass@localhost/nightaudit python -m pytest -q   # on PostgreSQL
+```
+
+Supabase Storage needs no account to test: `tests/fake_supabase.py` is a small HTTP server
+speaking the same object API, and `tests/test_storage.py` runs the portal against it, so the
+adapter makes real requests rather than mocked ones.
+
 Tests use an in-memory fake of the Odoo API (`tests/fake_odoo.py`) and layout-text fixtures
 extracted from the real sample reports with `tools/extract_layout_text.py` (staff names
 redacted; the figures are the real ones from the sample days). Tests that read the sample
@@ -377,3 +388,31 @@ Switching to the database: start with `PORTAL_STORE=db`, log in with a user seed
 files (`python -m portal seed` does the same as the "Import from the config files" button on
 `/admin`), then edit in the browser. Mapping YAML is validated on save; the pipeline picks up
 edits immediately. The files stay as documentation and as the seed for a fresh install.
+
+## Where the data lives: SQLite or Postgres, disk or object storage
+
+The same two switches again: nothing set means one directory on one machine, which is right
+for a laptop and for a single container with a persistent disk. Set them and the portal keeps
+nothing locally, so the container can be replaced or run in more than one copy.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DATABASE_URL` | unset | Unset: SQLite at `$PORTAL_DATA/portal.db`. Set to `postgresql://user:pass@host:5432/dbname`: PostgreSQL (needs `pip install "psycopg[binary]"`). Tables are created on first start either way. |
+| `SUPABASE_URL` | unset | The project URL, e.g. `https://abcdefgh.supabase.co`. |
+| `SUPABASE_SERVICE_KEY` | unset | The service role key. It bypasses row-level security, so it belongs on the host and never in the repository or the browser. |
+| `SUPABASE_BUCKET` | unset | A **private** bucket, created in the Supabase dashboard. |
+
+Uploads go to Supabase Storage only when all three `SUPABASE_*` variables are set; any of them
+missing and files are written to `$PORTAL_DATA` as before. A file's location is recorded in the
+database as `supabase://bucket/key` remotely or as an absolute path locally, and rows written
+before the switch keep working: a plain path is still read from disk. Remote files are cached
+in a temporary directory for the life of the process, because a pack is usually parsed
+immediately after it is uploaded.
+
+Storage is object storage, not a mounted disk, so a night-audit pack is uploaded once and read
+back by key. Nothing else in the code knows the difference — `portal/storage.py` is the whole
+adapter, and `portal/sql.py` is the equivalent for the two databases (it translates
+placeholders, `RETURNING id` versus `lastrowid`, and column introspection).
+
+A free Supabase project and a free Postgres database are enough to run the whole thing at small
+scale, which makes the eventual move to paid plans a change of plan rather than a migration.

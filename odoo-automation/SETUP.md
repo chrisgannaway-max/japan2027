@@ -101,7 +101,20 @@ PORTAL_STORE=db                              # manage properties and logins in t
 PORTAL_SECURE_COOKIES=always
 PORTAL_MFA_ROLES=admin
 PORTAL_BASE_URL=https://<the public address>
+
+DATABASE_URL=postgresql://...                # from the Supabase project's connection settings
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_SERVICE_KEY=<service role key>
+SUPABASE_BUCKET=night-audit                  # create it in the dashboard, private
 ```
+
+The last four are what make the deployment replaceable: with them set, the container holds no
+data, so the host can restart it, move it or run two of it. Leave them unset and everything
+lands in `PORTAL_DATA` on the container's own disk, which is fine until that disk goes away.
+
+Supabase's free tier gives a Postgres database and a storage bucket at no cost, so you can set
+all four now and see exactly how it behaves before anyone pays for anything; the paid plan is
+the same thing with backups and no pausing.
 
 Then `python3 -m portal seed` once to copy the config files into the database, and use the
 Settings and E-mail setup pages from there.

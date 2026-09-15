@@ -1,14 +1,17 @@
-"""SQLite run history for the portal (stdlib only)."""
+"""Run history, invoices, accounts and settings.
+
+Works on SQLite (the default, a file) or PostgreSQL (set DATABASE_URL); see portal/sql.py."""
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
+
+from .sql import Pool, database_url
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id {ID},
     created_at TEXT NOT NULL,
     uploaded_by TEXT,
     property_code TEXT,
@@ -29,7 +32,7 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 CREATE INDEX IF NOT EXISTS runs_prop_date ON runs(property_code, business_date);
 CREATE TABLE IF NOT EXISTS invoices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id {ID},
     created_at TEXT NOT NULL,
     uploaded_by TEXT,
     property_code TEXT,
@@ -85,39 +88,43 @@ CREATE TABLE IF NOT EXISTS vendor_accounts (
 
 
 class Database:
-    def __init__(self, path: Path):
-        self.path = Path(path)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, path_or_url: Any):
+        url = str(path_or_url)
+        if not url.startswith(("sqlite:///", "postgres://", "postgresql://")):
+            url = database_url(Path(path_or_url).parent) if Path(path_or_url).name == "portal.db" \
+                else f"sqlite:///{path_or_url}"
+        self.pool = Pool(url)
+        self.path = getattr(self.pool, "path", None)
         with self._conn() as c:
             c.executescript(SCHEMA)
 
-    def _conn(self) -> sqlite3.Connection:
-        c = sqlite3.connect(str(self.path))
-        c.row_factory = sqlite3.Row
-        return c
+    def _conn(self):
+        return self.pool.connect()
+
+    def describe(self) -> str:
+        return self.pool.describe()
 
     def add_run(self, *, uploaded_by: str, property_code: str, business_date: Optional[str], pms: str, ref: str,
                 status: str, message: str, file_name: str, stored_path: str, result_json: str) -> int:
         with self._conn() as c:
             if ref:   # a new upload for the same property/day supersedes earlier, unposted runs
                 c.execute("UPDATE runs SET superseded=1 WHERE ref=? AND posted_at IS NULL", (ref,))
-            cur = c.execute(
+            return c.insert(
                 "INSERT INTO runs(created_at, uploaded_by, property_code, business_date, pms, ref, status, message, "
                 "file_name, stored_path, result_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (datetime.now().isoformat(timespec="seconds"), uploaded_by, property_code, business_date, pms, ref,
                  status, message, file_name, stored_path, result_json))
-            return int(cur.lastrowid)
 
-    def get_run(self, run_id: int) -> Optional[sqlite3.Row]:
+    def get_run(self, run_id: int) -> Optional[dict]:
         with self._conn() as c:
             return c.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
 
-    def runs_for_date(self, business_date: str) -> list[sqlite3.Row]:
+    def runs_for_date(self, business_date: str) -> list[dict]:
         with self._conn() as c:
             return c.execute("SELECT * FROM runs WHERE business_date=? AND superseded=0 ORDER BY property_code, id DESC",
                              (business_date,)).fetchall()
 
-    def runs_between(self, start: str, end: str) -> list[sqlite3.Row]:
+    def runs_between(self, start: str, end: str) -> list[dict]:
         """Live (non-superseded) runs with a business date in [start, end]."""
         with self._conn() as c:
             return c.execute("SELECT * FROM runs WHERE superseded=0 AND business_date BETWEEN ? AND ? "
@@ -131,7 +138,7 @@ class Database:
                              "WHERE business_date IS NOT NULL GROUP BY property_code").fetchall()
         return {r["property_code"]: r["first"] for r in rows if r["property_code"]}
 
-    def recent_runs(self, limit: int = 50, property_codes: Optional[list[str]] = None) -> list[sqlite3.Row]:
+    def recent_runs(self, limit: int = 50, property_codes: Optional[list[str]] = None) -> list[dict]:
         with self._conn() as c:
             if property_codes is not None:
                 marks = ",".join("?" * len(property_codes)) or "''"
@@ -146,9 +153,9 @@ class Database:
 
     def dates_with_runs(self, limit: int = 30) -> list[str]:
         with self._conn() as c:
-            return [r[0] for r in c.execute(
-                "SELECT DISTINCT business_date FROM runs WHERE business_date IS NOT NULL ORDER BY business_date DESC LIMIT ?",
-                (limit,))]
+            return [r["business_date"] for r in c.execute(
+                "SELECT DISTINCT business_date FROM runs WHERE business_date IS NOT NULL "
+                "ORDER BY business_date DESC LIMIT ?", (limit,)).fetchall()]
 
     # ---------------------------------------------------------------- invoices
     INVOICE_FIELDS = ("property_code", "vendor_name", "vendor_tax_id", "invoice_number", "invoice_date", "due_date",
@@ -159,10 +166,9 @@ class Database:
         cols = ["created_at", "uploaded_by", "file_name", "stored_path", "reader", "confidence"] + list(fields)
         vals = [datetime.now().isoformat(timespec="seconds"), uploaded_by, file_name, stored_path, reader, confidence] + list(fields.values())
         with self._conn() as c:
-            cur = c.execute(f"INSERT INTO invoices({', '.join(cols)}) VALUES({', '.join('?' * len(cols))})", vals)
-            return int(cur.lastrowid)
+            return c.insert(f"INSERT INTO invoices({', '.join(cols)}) VALUES({', '.join('?' * len(cols))})", vals)
 
-    def get_invoice(self, inv_id: int) -> Optional[sqlite3.Row]:
+    def get_invoice(self, inv_id: int) -> Optional[dict]:
         with self._conn() as c:
             return c.execute("SELECT * FROM invoices WHERE id=?", (inv_id,)).fetchone()
 
@@ -172,7 +178,7 @@ class Database:
             c.execute(f"UPDATE invoices SET {cols} WHERE id=?", (*fields.values(), inv_id))
 
     def list_invoices(self, status: Optional[str] = None, property_codes: Optional[list[str]] = None,
-                      limit: int = 200) -> list[sqlite3.Row]:
+                      limit: int = 200) -> list[dict]:
         where, params = [], []
         if status:
             where.append("status=?"); params.append(status)
@@ -183,7 +189,7 @@ class Database:
         with self._conn() as c:
             return c.execute(sql, (*params, limit)).fetchall()
 
-    def find_duplicate_invoice(self, vendor_name: str, invoice_number: str, exclude_id: int = 0) -> Optional[sqlite3.Row]:
+    def find_duplicate_invoice(self, vendor_name: str, invoice_number: str, exclude_id: int = 0) -> Optional[dict]:
         if not vendor_name or not invoice_number:
             return None
         with self._conn() as c:
@@ -222,11 +228,11 @@ class Database:
                  for r in rows if str(r.get("code") or "").strip()]
         with self._conn() as c:
             c.execute("DELETE FROM accounts")
-            c.executemany("INSERT OR REPLACE INTO accounts(code, name, account_type, source, updated_at) "
-                          "VALUES(?,?,?,?,?)", clean)
+            for row in clean:
+                c.upsert("accounts", ("code", "name", "account_type", "source", "updated_at"), row, "code")
         return len(clean)
 
-    def list_accounts(self, q: str = "", limit: int = 2000) -> list[sqlite3.Row]:
+    def list_accounts(self, q: str = "", limit: int = 2000) -> list[dict]:
         with self._conn() as c:
             if q:
                 like = f"%{q}%"
