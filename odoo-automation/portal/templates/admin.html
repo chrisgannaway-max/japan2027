@@ -13,6 +13,7 @@
 </div>
 <div class="card">
   <h2>Account mapping</h2>
+  <p class="small"><a href="/admin/email">E-mail setup</a> &middot; needed for password resets and daily notices</p>
   <p class="small">Chart of accounts: {% if accounts_count %}{{ accounts_count }} loaded{% else %}<b>not loaded</b>{% endif %} &middot; <a href="/admin/accounts">manage</a></p>
   <form method="post" action="/admin/mapping/import/worksheet" enctype="multipart/form-data" class="row">
     <label>Filled-in mapping worksheet <input id="ws_file" type="file" name="file" accept=".xlsx" required></label>

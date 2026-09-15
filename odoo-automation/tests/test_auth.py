@@ -181,3 +181,52 @@ def test_totp_tolerates_a_slightly_wrong_clock():
     import time as _t
     assert verify_totp(secret, t.at(_t.time() - 30)), "the previous code still works"
     assert not verify_totp(secret, t.at(_t.time() - 300)), "an old one does not"
+
+
+# ------------------------------------------------------------------ e-mail setup page
+def test_email_settings_page_and_test_button(tmp_path, monkeypatch):
+    c, app_module = make(tmp_path, monkeypatch, mfa_roles="", smtp=False)
+    from portal import mail
+    c.post("/login", data={"username": "admin", "password": "admin"})
+    page = c.get("/admin/email").text
+    assert "Not set up" in page and "SMTP_HOST" in page
+    # saving from the browser configures it
+    assert c.post("/admin/email", data={"SMTP_HOST": "smtp.example.com", "SMTP_FROM": "portal@example.com",
+                                        "SMTP_PORT": "587", "SMTP_PASSWORD": "sekret",
+                                        "PORTAL_BASE_URL": "https://portal.example.com"}).status_code == 303
+    assert mail.configured() and mail.setting("SMTP_PASSWORD") == "sekret"
+    page = c.get("/admin/email").text
+    assert "Ready" in page
+    assert "sekret" not in page, "the password must never be rendered back"
+    # a blank password field leaves the saved one alone
+    c.post("/admin/email", data={"SMTP_HOST": "smtp2.example.com", "SMTP_FROM": "portal@example.com",
+                                 "SMTP_PASSWORD": ""})
+    assert mail.setting("SMTP_PASSWORD") == "sekret" and mail.setting("SMTP_HOST") == "smtp2.example.com"
+    # and can be cleared deliberately
+    c.post("/admin/email", data={"SMTP_HOST": "smtp2.example.com", "SMTP_FROM": "portal@example.com",
+                                 "SMTP_PASSWORD": "", "clear_password": "1"})
+    assert mail.setting("SMTP_PASSWORD") == ""
+    # the test button reports the mail server's own reason when it fails
+    r = c.post("/admin/email/test", data={"to": "someone@example.com"})
+    assert r.status_code == 303 and "Could+not+send" in r.headers["location"]
+    sent = {}
+    monkeypatch.setattr(mail, "send_reporting", lambda to, s_, b: sent.update(to=to) or (True, ""))
+    r = c.post("/admin/email/test", data={"to": "someone@example.com"})
+    assert sent["to"] == "someone@example.com" and "Test+message+sent" in r.headers["location"]
+
+
+def test_host_environment_wins_over_the_page(tmp_path, monkeypatch):
+    c, app_module = make(tmp_path, monkeypatch, mfa_roles="", smtp=True)   # SMTP_HOST set on the host
+    from portal import mail
+    c.post("/login", data={"username": "admin", "password": "admin"})
+    page = c.get("/admin/email").text
+    assert "set on the host" in page
+    c.post("/admin/email", data={"SMTP_HOST": "attacker.example.com", "SMTP_FROM": "x@example.com"})
+    assert mail.setting("SMTP_HOST") == "localhost", "a pinned value cannot be changed from the browser"
+
+
+def test_email_page_is_admin_only(tmp_path, monkeypatch):
+    c, _ = make(tmp_path, monkeypatch, mfa_roles="")
+    c.post("/login", data={"username": "okcon", "password": "okcon"})
+    assert c.get("/admin/email").status_code == 403
+    assert c.post("/admin/email/test", data={"to": "x@y.com"}).status_code == 403

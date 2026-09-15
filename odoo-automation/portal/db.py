@@ -55,6 +55,12 @@ CREATE TABLE IF NOT EXISTS invoices (
     posted_at TEXT,
     odoo_move_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT,
+    updated_by TEXT
+);
 CREATE TABLE IF NOT EXISTS password_resets (
     token_hash TEXT PRIMARY KEY,
     username TEXT NOT NULL,
@@ -266,3 +272,21 @@ class Database:
         if row is None or row["used_at"] or row["expires_at"] < datetime.now().isoformat(timespec="seconds"):
             return None
         return row["username"]
+
+    # ---------------------------------------------------------------- settings
+    def settings(self) -> dict[str, str]:
+        with self._conn() as c:
+            return {r["key"]: (r["value"] or "") for r in c.execute("SELECT key, value FROM settings")}
+
+    def save_settings(self, values: dict[str, str], username: str = "") -> None:
+        """Blank values are removed rather than stored, so falling back to the environment
+        is always possible."""
+        now = datetime.now().isoformat(timespec="seconds")
+        with self._conn() as c:
+            for k, v in values.items():
+                if v is None or v == "":
+                    c.execute("DELETE FROM settings WHERE key=?", (k,))
+                else:
+                    c.execute("INSERT INTO settings(key, value, updated_at, updated_by) VALUES(?,?,?,?) "
+                              "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at, "
+                              "updated_by=excluded.updated_by", (k, v, now, username))

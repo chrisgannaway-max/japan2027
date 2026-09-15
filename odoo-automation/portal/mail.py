@@ -2,11 +2,15 @@
 
 Configured entirely by environment variables, so nothing secret sits in the repository:
 
-    SMTP_HOST, SMTP_PORT (587), SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+    SMTP_HOST, SMTP_PORT (587), SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_REPLY_TO
     SMTP_SECURITY   starttls (default) | ssl | none
     PORTAL_BASE_URL https://nightaudit.example.com   - used to build links
 
-If SMTP_HOST is unset, `configured()` is False and the caller tells the user to contact
+The same keys can be saved on the Settings page instead, which is easier for whoever runs
+this day to day.  The environment always wins, so a value pinned on the host cannot be
+changed from the browser.
+
+If no host is configured, `configured()` is False and the caller tells the user to contact
 their administrator rather than pretending an e-mail went out.
 """
 from __future__ import annotations
@@ -17,27 +21,62 @@ from email.message import EmailMessage
 from typing import Optional
 
 
+KEYS = ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_SECURITY",
+        "SMTP_REPLY_TO", "PORTAL_BASE_URL")
+SECRET_KEYS = ("SMTP_PASSWORD",)
+
+#: filled in from the database by the portal; the environment always wins over it, so a
+#: value set on the host cannot be silently overridden from the browser.
+_stored: dict[str, str] = {}
+
+
+def set_stored(values: dict[str, str]) -> None:
+    global _stored
+    _stored = {k: v for k, v in (values or {}).items() if k in KEYS and v}
+
+
+def setting(key: str, default: str = "") -> str:
+    return os.environ.get(key) or _stored.get(key) or default
+
+
+def source_of(key: str) -> str:
+    if os.environ.get(key):
+        return "environment"
+    if _stored.get(key):
+        return "saved here"
+    return ""
+
+
 def configured() -> bool:
-    return bool(os.environ.get("SMTP_HOST") and os.environ.get("SMTP_FROM"))
+    return bool(setting("SMTP_HOST") and setting("SMTP_FROM"))
 
 
 def base_url() -> str:
-    return os.environ.get("PORTAL_BASE_URL", "").rstrip("/")
+    return setting("PORTAL_BASE_URL").rstrip("/")
 
 
 def send(to: str, subject: str, body: str) -> bool:
-    """True if it was handed to the mail server.  Never raises: a failed e-mail must not
-    take the site down, and the caller shows the same message either way."""
-    if not configured() or not to:
-        return False
+    """True if the mail server accepted it."""
+    return send_reporting(to, subject, body)[0]
+
+
+def send_reporting(to: str, subject: str, body: str) -> tuple[bool, str]:
+    """(sent, why not).  Never raises: a mail server having a bad day must not take the
+    site down, and the reason is worth showing on the test page."""
+    if not configured():
+        return False, "No mail server configured (SMTP_HOST and SMTP_FROM)."
+    if not to:
+        return False, "No address to send to."
     msg = EmailMessage()
-    msg["From"] = os.environ["SMTP_FROM"]
+    msg["From"] = setting("SMTP_FROM")
     msg["To"] = to
+    if setting("SMTP_REPLY_TO"):
+        msg["Reply-To"] = setting("SMTP_REPLY_TO")
     msg["Subject"] = subject
     msg.set_content(body)
-    host, port = os.environ["SMTP_HOST"], int(os.environ.get("SMTP_PORT", "587"))
-    security = os.environ.get("SMTP_SECURITY", "starttls").lower()
-    user, password = os.environ.get("SMTP_USER"), os.environ.get("SMTP_PASSWORD")
+    host, port = setting("SMTP_HOST"), int(setting("SMTP_PORT", "587") or 587)
+    security = setting("SMTP_SECURITY", "starttls").lower()
+    user, password = setting("SMTP_USER"), setting("SMTP_PASSWORD")
     try:
         if security == "ssl":
             server: smtplib.SMTP = smtplib.SMTP_SSL(host, port, timeout=20)
@@ -49,10 +88,10 @@ def send(to: str, subject: str, body: str) -> bool:
             if user and password:
                 server.login(user, password)
             server.send_message(msg)
-        return True
+        return True, ""
     except Exception as e:  # noqa: BLE001 - log and carry on
         print(f"[mail] could not send to {to}: {type(e).__name__}: {e}")
-        return False
+        return False, f"{type(e).__name__}: {e}"
 
 
 def reset_email(username: str, link: str, minutes: int) -> tuple[str, str]:

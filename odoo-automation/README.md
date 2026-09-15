@@ -230,8 +230,21 @@ stored as salted PBKDF2 hashes, never in plain text, and the session cookie last
 |---|---|---|
 | `PORTAL_SECURE_COOKIES` | `auto` | `auto` marks the session cookie Secure when the request arrived over HTTPS, honouring `X-Forwarded-Proto` behind a proxy. `always` in production if you want to be certain; `never` for local HTTP. |
 | `PORTAL_MFA_ROLES` | *(empty)* | Comma-separated roles that must use two-step sign-in, e.g. `admin`. Off by default so nobody is locked out before enrolling. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_SECURITY` | — | Outgoing mail. Without `SMTP_HOST` the "forgotten password" page says resets are not enabled and to ask an administrator. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_SECURITY`, `SMTP_REPLY_TO` | — | Outgoing mail. Can be set here **or** on the E-mail setup page; the host always wins. Without a host the "forgotten password" page says resets are not enabled and to ask an administrator. |
 | `PORTAL_BASE_URL` | — | The public address, used to build reset links. |
+
+**E-mail setup page** (`/admin/email`, admin only). Shows whether mail is working, lets you
+fill in the server details in the browser rather than through the hosting dashboard, and has
+a **Send test message** button that reports the mail server's own reason when it fails, which
+is usually enough to tell a wrong password from a wrong hostname. The password is never
+rendered back: leaving it blank keeps the saved one, and there is a checkbox to clear it.
+Anything set as an environment variable on the host is shown locked and cannot be changed
+from the browser.
+
+Use a transactional mail service (Resend, Postmark, Amazon SES) with a sending address on a
+**subdomain** you control, such as `nightaudit@mail.example.com`. A subdomain needs no change
+to the records that govern the company's existing mail, so it is safe to approve, and the
+portal's sending reputation stays separate from theirs.
 
 **Password resets.** A user enters their username or e-mail on `/forgot` and gets a link that
 lasts an hour and works once. Only the hash of the token is stored, so the database never

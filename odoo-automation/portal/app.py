@@ -70,6 +70,7 @@ class State:
         self.reload_config()
 
     def reload_config(self) -> None:
+        mail.set_stored(self.db.settings())
         if self.store is not None:
             self.props = self.store.properties()
             self.users = UserStore(records=self.store.users())
@@ -1003,3 +1004,46 @@ def missing_csv(days: int = 14, day: Optional[str] = None, user: User = Depends(
                         r["status"] if r else "", r["created_at"] if r else "", r["uploaded_by"] if r else ""])
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="missing-uploads-{grid["end"]}.csv"'})
+
+
+# ------------------------------------------------------------------ e-mail setup
+@app.get("/admin/email", response_class=HTMLResponse)
+def email_page(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = ""):
+    rows = []
+    for key in mail.KEYS:
+        secret = key in mail.SECRET_KEYS
+        rows.append({"key": key, "source": mail.source_of(key), "secret": secret,
+                     "value": "" if secret else mail.setting(key),
+                     "is_set": bool(mail.setting(key)),
+                     "locked": bool(os.environ.get(key))})
+    return render(request, "admin_email.html", rows=rows, configured=mail.configured(),
+                  msg=msg, err=err, test_to=user.email or "")
+
+
+@app.post("/admin/email")
+async def email_save(request: Request, user: User = Depends(require_admin)):
+    form = await request.form()
+    values = {}
+    for key in mail.KEYS:
+        if os.environ.get(key):
+            continue                                   # pinned on the host, not ours to change
+        v = (form.get(key) or "").strip()
+        if key in mail.SECRET_KEYS and not v:
+            continue                                   # blank means "leave the saved one alone"
+        values[key] = v
+    if form.get("clear_password"):
+        values["SMTP_PASSWORD"] = ""
+    state.db.save_settings(values, user.username)
+    state.reload_config()
+    return RedirectResponse("/admin/email?msg=Saved", status_code=303)
+
+
+@app.post("/admin/email/test")
+def email_test(request: Request, to: str = Form(...), user: User = Depends(require_admin)):
+    body = ("This is a test from the Night Audit portal.\n\n"
+            "If you can read this, password resets and the daily missing-uploads notice will reach people.\n"
+            f"Sent by {user.username}.\n")
+    ok, why = mail.send_reporting(to.strip(), "Night Audit portal: test message", body)
+    if ok:
+        return RedirectResponse(f"/admin/email?msg=Test+message+sent+to+{to.strip()}", status_code=303)
+    return RedirectResponse(f"/admin/email?err=Could+not+send:+{why}", status_code=303)
