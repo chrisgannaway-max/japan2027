@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS properties (
 );
 CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, role TEXT NOT NULL, properties TEXT DEFAULT '',
-    enabled INTEGER DEFAULT 1, updated_at TEXT
+    enabled INTEGER DEFAULT 1, updated_at TEXT, email TEXT DEFAULT '', totp_secret TEXT DEFAULT '',
+    mfa_enabled INTEGER DEFAULT 0
 );
 """
 
@@ -51,6 +52,11 @@ class ConfigStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._conn() as c:
             c.executescript(SCHEMA)
+            have = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
+            for col, decl in (("email", "TEXT DEFAULT ''"), ("totp_secret", "TEXT DEFAULT ''"),
+                              ("mfa_enabled", "INTEGER DEFAULT 0")):
+                if col not in have:                      # a database created before MFA existed
+                    c.execute(f"ALTER TABLE users ADD COLUMN {col} {decl}")
 
     def _conn(self) -> sqlite3.Connection:
         c = sqlite3.connect(str(self.db_path))
@@ -127,7 +133,9 @@ class ConfigStore:
         with self._conn() as c:
             rows = c.execute("SELECT * FROM users WHERE enabled=1 ORDER BY username").fetchall()
         return [{"username": r["username"], "password_hash": r["password_hash"], "role": r["role"],
-                 "properties": [p for p in (r["properties"] or "").split(",") if p]} for r in rows]
+                 "properties": [p for p in (r["properties"] or "").split(",") if p],
+                 "email": r["email"] or "", "totp_secret": r["totp_secret"] or "",
+                 "mfa_enabled": bool(r["mfa_enabled"])} for r in rows]
 
     def all_users(self) -> list[dict]:
         with self._conn() as c:
@@ -135,20 +143,33 @@ class ConfigStore:
         return [dict(r) for r in rows]
 
     def save_user(self, username: str, role: str, properties: list[str], password: Optional[str] = None,
-                  password_hash: Optional[str] = None, enabled: bool = True) -> None:
+                  password_hash: Optional[str] = None, enabled: bool = True, email: Optional[str] = None) -> None:
         username = username.strip()
         if not username or role not in ("admin", "manager"):
             raise ValueError("username and a role of admin or manager are required")
         with self._conn() as c:
-            existing = c.execute("SELECT password_hash FROM users WHERE username=?", (username,)).fetchone()
+            existing = c.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
             ph = password_hash or (hash_password(password) if password else (existing["password_hash"] if existing else None))
             if not ph:
                 raise ValueError("a password is required for a new user")
-            c.execute("INSERT INTO users(username, password_hash, role, properties, enabled, updated_at) VALUES(?,?,?,?,?,?) "
+            mail = (email if email is not None else (existing["email"] if existing else "")) or ""
+            c.execute("INSERT INTO users(username, password_hash, role, properties, enabled, updated_at, email) "
+                      "VALUES(?,?,?,?,?,?,?) "
                       "ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, role=excluded.role, "
-                      "properties=excluded.properties, enabled=excluded.enabled, updated_at=excluded.updated_at",
+                      "properties=excluded.properties, enabled=excluded.enabled, updated_at=excluded.updated_at, "
+                      "email=excluded.email",
                       (username, ph, role, ",".join(p.strip() for p in properties if p.strip()), 1 if enabled else 0,
-                       datetime.now().isoformat(timespec="seconds")))
+                       datetime.now().isoformat(timespec="seconds"), mail.strip()))
+
+    def set_password(self, username: str, password: str) -> None:
+        with self._conn() as c:
+            c.execute("UPDATE users SET password_hash=?, updated_at=? WHERE username=?",
+                      (hash_password(password), datetime.now().isoformat(timespec="seconds"), username))
+
+    def set_mfa(self, username: str, secret: str, enabled: bool) -> None:
+        with self._conn() as c:
+            c.execute("UPDATE users SET totp_secret=?, mfa_enabled=?, updated_at=? WHERE username=?",
+                      (secret, 1 if enabled else 0, datetime.now().isoformat(timespec="seconds"), username))
 
     def delete_user(self, username: str) -> None:
         with self._conn() as c:
@@ -175,7 +196,8 @@ class ConfigStore:
             if u["username"] in existing_users and not overwrite:
                 continue
             self.save_user(u["username"], u.get("role", "manager"), [str(x) for x in u.get("properties", [])],
-                           password=u.get("password"), password_hash=u.get("password_hash"))
+                           password=u.get("password"), password_hash=u.get("password_hash"),
+                           email=(u.get("email") or ""))
             counts["users"] += 1
         return counts
 

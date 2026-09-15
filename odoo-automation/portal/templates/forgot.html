@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}Forgotten password{% endblock %}
+{% block body %}
+<div class="card" style="max-width:460px">
+  <h1>Forgotten your password</h1>
+  {% if message %}<p class="pill ok">{{ message }}</p>{% endif %}
+  {% if error %}<p class="err">{{ error }}</p>{% endif %}
+  {% if can_email %}
+    <p class="small">Type your username or the e-mail address on your account and we will send you a link.</p>
+    <form method="post" action="/forgot" style="display:flex;flex-direction:column;gap:10px">
+      <label>Username or e-mail <input id="who" name="who" required autofocus></label>
+      <button class="btn" type="submit">Send me a link</button>
+    </form>
+  {% else %}
+    <p>Password resets by e-mail are not switched on for this installation. Ask your administrator
+      to set a new password for you.</p>
+  {% endif %}
+  <p class="small"><a href="/login">Back to sign in</a></p>
+</div>
+{% endblock %}

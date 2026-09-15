@@ -92,6 +92,7 @@ Odoo connection (environment variables):
 | `ODOO_TRANSPORT`    | `json2` (default, Odoo 19+) or `xmlrpc` (Odoo 18 and earlier)      |
 | `ODOO_USER`         | bot user login, only for `xmlrpc`                                  |
 | `ANTHROPIC_API_KEY` | optional: turns on the AI invoice reader (night audit never uses it) |
+| `PORTAL_MFA_ROLES`, `SMTP_*` | see the logins section below |
 
 Odoo Online note: the external API is only enabled on the *Custom* plan, not *One App Free* or
 *Standard*. Odoo.sh and self-hosted have no such restriction.
@@ -219,6 +220,36 @@ a PEP night-audit report") and not stored, and an invoice uploaded as a night-au
 comes back as *Looks like an invoice* with a one-click button to send it across. The check is
 `pms_to_odoo/invoices/sniff.py`, and it scores every one of the six report formats firmly
 negative and a real invoice firmly positive.
+
+## Logins, password resets and two-step sign-in
+
+Each property has its own login, listing the properties it may upload for. Passwords are
+stored as salted PBKDF2 hashes, never in plain text, and the session cookie lasts 12 hours.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PORTAL_SECURE_COOKIES` | `auto` | `auto` marks the session cookie Secure when the request arrived over HTTPS, honouring `X-Forwarded-Proto` behind a proxy. `always` in production if you want to be certain; `never` for local HTTP. |
+| `PORTAL_MFA_ROLES` | *(empty)* | Comma-separated roles that must use two-step sign-in, e.g. `admin`. Off by default so nobody is locked out before enrolling. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_SECURITY` | — | Outgoing mail. Without `SMTP_HOST` the "forgotten password" page says resets are not enabled and to ask an administrator. |
+| `PORTAL_BASE_URL` | — | The public address, used to build reset links. |
+
+**Password resets.** A user enters their username or e-mail on `/forgot` and gets a link that
+lasts an hour and works once. Only the hash of the token is stored, so the database never
+holds a usable link, and the page gives the same answer whether or not the account exists so
+it cannot be used to discover who has one. Resets need the database store and an e-mail
+address on the account; otherwise an administrator sets the password on the Settings page.
+
+**Repeated wrong passwords are slowed down.** Five failures for one username from one address,
+or twenty from one address across any usernames, locks that combination for fifteen minutes.
+It is held in memory, so it resets when the process restarts and is per worker, which is
+enough to stop guessing without another moving part to maintain.
+
+**Two-step sign-in** uses an authenticator app, which costs nothing and works without a phone
+signal. Each user enrols on their own account page by scanning a QR code. Setting
+`PORTAL_MFA_ROLES=admin` makes it compulsory for administrators: they can sign in but are
+sent to enrol before reaching anything else. If someone loses their phone, an administrator
+clears it from the Settings page and they enrol again. It needs `PORTAL_STORE=db`, and
+enforcement is skipped in file mode rather than locking anyone out.
 
 ## Account mapping, without editing YAML
 

@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS invoices (
     posted_at TEXT,
     odoo_move_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS password_resets (
+    token_hash TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
+);
 CREATE TABLE IF NOT EXISTS accounts (
     code TEXT PRIMARY KEY,
     name TEXT,
@@ -225,3 +232,37 @@ class Database:
         with self._conn() as c:
             row = c.execute("SELECT COUNT(*) n, MAX(updated_at) at, MAX(source) src FROM accounts").fetchone()
         return {"count": row["n"], "updated_at": row["at"], "source": row["src"]}
+
+    # ---------------------------------------------------------------- password resets
+    @staticmethod
+    def _token_hash(token: str) -> str:
+        import hashlib
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def create_reset(self, username: str, token: str, minutes: int = 60) -> None:
+        """Only the hash is stored, so the database never holds a usable link."""
+        from datetime import timedelta as _td
+        now = datetime.now()
+        with self._conn() as c:
+            c.execute("DELETE FROM password_resets WHERE username=? AND used_at IS NULL", (username,))
+            c.execute("INSERT INTO password_resets(token_hash, username, created_at, expires_at) VALUES(?,?,?,?)",
+                      (self._token_hash(token), username, now.isoformat(timespec="seconds"),
+                       (now + _td(minutes=minutes)).isoformat(timespec="seconds")))
+
+    def use_reset(self, token: str) -> Optional[str]:
+        """The username if the token is valid and unused, else None.  Single use."""
+        with self._conn() as c:
+            row = c.execute("SELECT * FROM password_resets WHERE token_hash=?", (self._token_hash(token),)).fetchone()
+            if row is None or row["used_at"] or row["expires_at"] < datetime.now().isoformat(timespec="seconds"):
+                return None
+            c.execute("UPDATE password_resets SET used_at=? WHERE token_hash=?",
+                      (datetime.now().isoformat(timespec="seconds"), row["token_hash"]))
+            return row["username"]
+
+    def peek_reset(self, token: str) -> Optional[str]:
+        """Like use_reset but without spending it, so the form can be shown first."""
+        with self._conn() as c:
+            row = c.execute("SELECT * FROM password_resets WHERE token_hash=?", (self._token_hash(token),)).fetchone()
+        if row is None or row["used_at"] or row["expires_at"] < datetime.now().isoformat(timespec="seconds"):
+            return None
+        return row["username"]

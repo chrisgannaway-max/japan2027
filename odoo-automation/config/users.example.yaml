@@ -1,8 +1,15 @@
 # Portal users.  Copy to users.yaml.  Generate hashes with:  python -m portal hash 'the password'
 # Plain `password:` is accepted only so the first login works; replace it with password_hash.
+#
+# `email` is what makes self-service password reset possible; without one, only an
+# administrator can set a new password for that person.
+#
+# Once you switch to PORTAL_STORE=db, manage all of this on the Settings page instead and
+# treat this file only as the seed for a fresh install.
 users:
   - username: admin
     password: admin            # CHANGE ME
+    email: accounting@example.com
     role: admin
   - username: okcon
     password: okcon            # CHANGE ME

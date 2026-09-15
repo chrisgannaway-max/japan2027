@@ -32,10 +32,10 @@
 <div class="card">
   <h2>Logins</h2>
   <div class="tablewrap"><table>
-    <thead><tr><th>Username</th><th>Role</th><th>Properties</th><th>Enabled</th>{% if store_mode == 'db' %}<th></th>{% endif %}</tr></thead>
+    <thead><tr><th>Username</th><th>Role</th><th>Properties</th><th>E-mail</th><th>Two-step</th><th>Enabled</th>{% if store_mode == 'db' %}<th></th>{% endif %}</tr></thead>
     <tbody>{% for u in users_list %}
-      <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.properties }}</td><td>{{ 'yes' if u.enabled else 'no' }}</td>
-      {% if store_mode == 'db' %}<td><form method="post" action="/admin/users" class="row"><input type="hidden" name="username" value="{{ u.username }}"><input type="hidden" name="role" value="{{ u.role }}"><input type="hidden" name="properties" value="{{ u.properties }}"><input id="pw_{{ u.username }}" name="password" type="password" placeholder="new password"><button class="btn secondary" type="submit">Reset</button><button class="btn secondary" type="submit" name="action" value="delete">Delete</button></form></td>{% endif %}</tr>
+      <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.properties }}</td><td class="small">{{ u.email or '—' }}</td><td>{% if u.mfa_enabled %}<span class="pill ok">on</span> <form method="post" action="/admin/users/{{ u.username }}/mfa-reset" style="display:inline"><button class="btn secondary" type="submit" title="lost phone">reset</button></form>{% else %}<span class="small">off</span>{% endif %}</td><td>{{ 'yes' if u.enabled else 'no' }}</td>
+      {% if store_mode == 'db' %}<td><form method="post" action="/admin/users" class="row"><input type="hidden" name="username" value="{{ u.username }}"><input type="hidden" name="role" value="{{ u.role }}"><input type="hidden" name="properties" value="{{ u.properties }}"><input type="hidden" name="email" value="{{ u.email }}"><input id="pw_{{ u.username }}" name="password" type="password" placeholder="new password"><button class="btn secondary" type="submit">Reset</button><button class="btn secondary" type="submit" name="action" value="delete">Delete</button></form></td>{% endif %}</tr>
     {% endfor %}</tbody></table></div>
   {% if store_mode == 'db' %}
   <h3>Add or update a login</h3>
@@ -43,6 +43,7 @@
     <input id="new_username" name="username" placeholder="username" required>
     <select id="new_role" name="role"><option value="manager">manager</option><option value="admin">admin</option></select>
     <input id="new_props" name="properties" placeholder="OKCON, TXI47">
+    <input id="new_email" name="email" type="email" placeholder="e-mail (for password resets)">
     <input id="new_password" name="password" type="password" placeholder="password" required>
     <button class="btn" type="submit">Save login</button>
   </form>

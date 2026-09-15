@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% block title %}My account{% endblock %}
+{% block body %}
+<h1>My account</h1>
+{% if setup and not user.needs_mfa() %}
+<div class="card" style="border-color:var(--warn)">
+  <p><span class="pill warn">Required</span> Your role needs two-step sign-in. Set it up below before carrying on.</p>
+</div>
+{% endif %}
+<div class="card">
+  <div class="row small">
+    <span><b>Signed in as</b> {{ user.username }}</span><span><b>Role</b> {{ user.role }}</span>
+    <span><b>Properties</b> {{ user.properties|join(', ') or 'all' }}</span>
+    <span><b>E-mail</b> {{ user.email or 'none on file' }}</span>
+  </div>
+  {% if not user.email %}<p class="small">Without an e-mail address you cannot reset your own password. Ask an administrator to add one.</p>{% endif %}
+</div>
+<div class="card">
+  <h2>Two-step sign-in {% if user.needs_mfa() %}<span class="pill ok">on</span>{% else %}<span class="pill warn">off</span>{% endif %}</h2>
+  {% if error %}<p class="err">{{ error }}</p>{% endif %}
+  {% if user.needs_mfa() %}
+    <p class="small">Each time you sign in you will be asked for a code from your authenticator app.</p>
+    {% if not user.mfa_required() %}
+      <form method="post" action="/account/mfa/disable"><button class="btn secondary" type="submit">Turn it off</button></form>
+    {% else %}
+      <p class="small">Your role requires it, so it cannot be turned off here. An administrator can reset it if you lose your phone.</p>
+    {% endif %}
+  {% else %}
+    <p class="small">Scan this with an authenticator app (Google Authenticator, Authy, 1Password, Microsoft Authenticator),
+      then type the six digits it shows to confirm.</p>
+    <div style="max-width:220px">{{ qr|safe }}</div>
+    <p class="small">Cannot scan? Enter this key by hand: <code>{{ secret }}</code></p>
+    <form method="post" action="/account/mfa/enable" class="row">
+      <input type="hidden" name="secret" value="{{ secret }}">
+      <label>Six-digit code <input id="code" name="code" inputmode="numeric" maxlength="9" required></label>
+      <button class="btn" type="submit">Turn on two-step sign-in</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

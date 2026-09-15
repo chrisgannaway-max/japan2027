@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import re
+import secrets
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -34,7 +35,9 @@ from pms_to_odoo.invoices.sniff import looks_like_invoice
 from pms_to_odoo.parsers import detect_pms as _detect_pms, get_parser, read_text as _read_text
 from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, process_file, resolve
 
-from .auth import SessionSigner, User, UserStore, hash_password
+from . import mail
+from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
+                    new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -61,6 +64,8 @@ class State:
         self.db = Database(DATA / "portal.db")
         self.store = ConfigStore(DATA / "portal.db", DATA) if self.mode == "db" else None
         self.signer = SessionSigner()
+        self.pending = SessionSigner(max_age=300)     # the 5 minutes between password and MFA code
+        self.throttle = LoginThrottle()
         self.odoo_enabled = bool(os.environ.get("ODOO_URL") and os.environ.get("ODOO_API_KEY"))
         self.reload_config()
 
@@ -83,10 +88,38 @@ def current_user(request: Request) -> Optional[User]:
     return state.users.get(username) if username else None
 
 
+def _https(request: Request) -> bool:
+    """Whether to mark cookies Secure.  Honours X-Forwarded-Proto, since the site normally
+    sits behind a proxy that terminates TLS."""
+    mode = os.environ.get("PORTAL_SECURE_COOKIES", "auto").lower()
+    if mode in ("always", "1", "true"):
+        return True
+    if mode in ("never", "0", "false"):
+        return False
+    proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    return (proto or request.url.scheme) == "https"
+
+
+def _set_session(resp, request: Request, username: str) -> None:
+    resp.set_cookie("session", state.signer.sign(username), httponly=True, samesite="lax",
+                    secure=_https(request), max_age=state.signer.max_age)
+
+
+def _client_ip(request: Request) -> str:
+    fwd = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return fwd or (request.client.host if request.client else "unknown")
+
+
 def require_user(request: Request) -> User:
     u = current_user(request)
     if not u:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
+    # a role that must use MFA is sent to set it up before it can do anything else. Only
+    # when it can actually be set up: enforcing it in file mode would lock the person out,
+    # since the secret has nowhere to be stored.
+    if (u.mfa_required() and state.store is not None and not u.needs_mfa()
+            and not request.url.path.startswith(("/account", "/logout"))):
+        raise HTTPException(status_code=303, headers={"Location": "/account?setup=1"})
     return u
 
 
@@ -125,12 +158,137 @@ def login_form(request: Request):
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    u = state.users.authenticate(username.strip(), password)
+    ip, username = _client_ip(request), username.strip()
+    wait = state.throttle.locked_for(ip, username)
+    if wait:
+        return render(request, "login.html",
+                      error=f"Too many attempts. Try again in {max(1, wait // 60)} minute(s).")
+    u = state.users.authenticate(username, password)
     if not u:
+        state.throttle.record_failure(ip, username)
         return render(request, "login.html", error="Wrong username or password.")
+    state.throttle.record_success(ip, username)
+    if u.needs_mfa():
+        return render(request, "login_mfa.html", pending=state.pending.sign(u.username), error=None)
     resp = RedirectResponse("/" if u.is_admin else "/upload", status_code=303)
-    resp.set_cookie("session", state.signer.sign(u.username), httponly=True, samesite="lax")
+    _set_session(resp, request, u.username)
     return resp
+
+
+@app.post("/login/mfa")
+def login_mfa(request: Request, pending: str = Form(...), code: str = Form(...)):
+    username = state.pending.verify(pending)
+    if not username:
+        return render(request, "login.html", error="That took too long. Please sign in again.")
+    u = state.users.get(username)
+    ip = _client_ip(request)
+    if state.throttle.locked_for(ip, username):
+        return render(request, "login.html", error="Too many attempts. Try again shortly.")
+    if not u or not verify_totp(u.totp_secret, code):
+        state.throttle.record_failure(ip, username)
+        return render(request, "login_mfa.html", pending=pending, error="That code is not right.")
+    state.throttle.record_success(ip, username)
+    resp = RedirectResponse("/" if u.is_admin else "/upload", status_code=303)
+    _set_session(resp, request, u.username)
+    return resp
+
+
+# ------------------------------------------------------------------ forgotten passwords
+RESET_MINUTES = 60
+SAME_ANSWER = ("If that account exists and has an e-mail address on file, a reset link is on its way. "
+               "The link lasts an hour.")
+
+
+@app.get("/forgot", response_class=HTMLResponse)
+def forgot_form(request: Request):
+    return render(request, "forgot.html", message=None, error=None, can_email=mail.configured())
+
+
+@app.post("/forgot", response_class=HTMLResponse)
+def forgot(request: Request, who: str = Form(...)):
+    u = state.users.find(who)
+    if u and u.email and mail.configured():
+        token = secrets.token_urlsafe(32)
+        state.db.create_reset(u.username, token, RESET_MINUTES)
+        link = f"{mail.base_url() or str(request.base_url).rstrip('/')}/reset?token={token}"
+        subject, body = mail.reset_email(u.username, link, RESET_MINUTES)
+        mail.send(u.email, subject, body)
+    # the same answer either way, so the form cannot be used to discover who has an account
+    return render(request, "forgot.html", message=SAME_ANSWER, error=None, can_email=mail.configured())
+
+
+@app.get("/reset", response_class=HTMLResponse)
+def reset_form(request: Request, token: str = ""):
+    if not state.db.peek_reset(token):
+        return render(request, "reset.html", token="", error="That link has expired or has already been used.")
+    return render(request, "reset.html", token=token, error=None)
+
+
+@app.post("/reset", response_class=HTMLResponse)
+def reset(request: Request, token: str = Form(...), password: str = Form(...), confirm: str = Form(...)):
+    if len(password) < 10:
+        return render(request, "reset.html", token=token, error="Use at least 10 characters.")
+    if password != confirm:
+        return render(request, "reset.html", token=token, error="Those two do not match.")
+    username = state.db.use_reset(token)
+    if not username:
+        return render(request, "reset.html", token="", error="That link has expired or has already been used.")
+    if state.store is None:
+        return render(request, "reset.html", token="",
+                      error="Passwords are held in a file on this installation; ask an administrator to change it.")
+    state.store.set_password(username, password)
+    state.reload_config()
+    return render(request, "reset.html", token="", done=True, error=None)
+
+
+# ------------------------------------------------------------------ the user's own account
+@app.get("/account", response_class=HTMLResponse)
+def account(request: Request, setup: str = "", user: User = Depends(require_user)):
+    secret = request.cookies.get("mfa_setup") or ""
+    if not user.needs_mfa() and not secret:
+        secret = new_totp_secret()
+    ctx = dict(setup=bool(setup), qr=None, secret=secret, error=None)
+    if secret and not user.needs_mfa():
+        ctx["qr"] = totp_qr_svg(totp_uri(secret, user.username))
+    resp = render(request, "account.html", **ctx)
+    if secret and not user.needs_mfa():
+        resp.set_cookie("mfa_setup", secret, httponly=True, samesite="lax", secure=_https(request), max_age=900)
+    return resp
+
+
+@app.post("/account/mfa/enable", response_class=HTMLResponse)
+def mfa_enable(request: Request, code: str = Form(...), secret: str = Form(...), user: User = Depends(require_user)):
+    if state.store is None:
+        return render(request, "account.html", setup=False, qr=None, secret="",
+                      error="MFA needs the database store (PORTAL_STORE=db).")
+    if not verify_totp(secret, code):
+        return render(request, "account.html", setup=True, secret=secret,
+                      qr=totp_qr_svg(totp_uri(secret, user.username)), error="That code is not right. Try the next one.")
+    state.store.set_mfa(user.username, secret, True)
+    state.reload_config()
+    resp = RedirectResponse("/account", status_code=303)
+    resp.delete_cookie("mfa_setup")
+    return resp
+
+
+@app.post("/account/mfa/disable")
+def mfa_disable(request: Request, user: User = Depends(require_user)):
+    if user.mfa_required():
+        raise HTTPException(400, "Your role must keep two-step sign-in switched on")
+    if state.store is not None:
+        state.store.set_mfa(user.username, "", False)
+        state.reload_config()
+    return RedirectResponse("/account", status_code=303)
+
+
+@app.post("/admin/users/{username}/mfa-reset")
+def admin_mfa_reset(username: str, user: User = Depends(require_admin)):
+    """For the lost-phone case: an admin clears it and the person enrols again."""
+    if state.store is None:
+        raise HTTPException(400, "Needs the database store (PORTAL_STORE=db)")
+    state.store.set_mfa(username, "", False)
+    state.reload_config()
+    return RedirectResponse(f"/admin?msg=Two-step+sign-in+cleared+for+{username}", status_code=303)
 
 
 @app.get("/logout")
@@ -578,7 +736,8 @@ async def admin_user_save(request: Request, user: User = Depends(require_admin))
         else:
             props = [p.strip() for p in (form.get("properties") or "").replace(";", ",").split(",")]
             store.save_user(form.get("username", ""), form.get("role", "manager"), props,
-                            password=(form.get("password") or None), enabled=bool(form.get("enabled", "1")))
+                            password=(form.get("password") or None), enabled=bool(form.get("enabled", "1")),
+                            email=(form.get("email") or ""))
     except ValueError as e:
         return RedirectResponse(f"/admin?err={e}", status_code=303)
     state.reload_config()
