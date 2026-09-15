@@ -60,8 +60,12 @@ Design rules baked in:
 - **Balanced or nothing.** An entry outside `tolerance` is never sent.
 - **Every line must map.** A new revenue code stops the run with the label named, instead of
   silently landing in the wrong account. (Optional `suspense_account` changes this.)
-- **Idempotent.** Journal ref is `PMS-PROPERTY-DATE`; rerunning finds the existing move.
-  Bills dedupe on vendor + invoice number.
+- **Idempotent, on every path.** The journal reference is `PMS-PROPERTY-DATE`. Uploading the
+  same night twice keeps both files for the audit trail but supersedes the older run, so one
+  entry stands. Posting through the API finds the existing move and does nothing. The CSV
+  export leaves out entries already downloaded or posted, because handing the same day out
+  twice is how a day gets booked twice; a deliberate "download again" link is there for when
+  an import genuinely failed. Bills dedupe on vendor plus invoice number.
 - **Draft first.** Entries and bills are created in draft. `--post` posts night-audit entries
   immediately once the mapping is trusted.
 - **Audit trail.** `logs/daily_entries.csv` and `logs/invoices.csv`; every parsed line carries

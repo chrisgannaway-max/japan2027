@@ -137,3 +137,41 @@ def test_synxis_pair_upload_merges(client):
     login(client, "admin", "admin")
     r = client.get("/?day=2025-11-11")
     assert "LQ89051" in r.text and "5,903.42" in r.text
+
+
+def test_same_nightly_file_uploaded_twice_yields_one_entry(client):
+    login(client, "okcon", "okcon")
+    for i in (1, 2, 3):
+        with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+            r = client.post("/upload", data={"property_code": "OKCON"},
+                            files=[("files", (f"audit{i}.txt", fh, "text/plain"))])
+        assert r.status_code == 200 and "Balanced, ready to post" in r.text
+    import portal.app as app_module
+    runs = app_module.state.db.recent_runs(10)
+    assert len(runs) == 3, "each upload is kept for the audit trail"
+    assert sum(1 for r in runs if not r["superseded"]) == 1, "only the newest counts"
+    live = app_module.state.db.runs_for_date("2025-11-10")
+    assert len(live) == 1 and live[0]["id"] == runs[0]["id"]
+
+
+def test_a_day_is_not_handed_out_twice(client):
+    login(client, "okcon", "okcon")
+    with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+        client.post("/upload", data={"property_code": "OKCON"}, files=[("files", ("a.txt", fh, "text/plain"))])
+    client.get("/logout")
+    login(client, "admin", "admin")
+    first = client.get("/export/2025-11-10.csv?fmt=odoo")
+    assert "PEP-OKCON-2025-11-10" in first.text
+    n_first = len(first.text.strip().splitlines()) - 1
+    assert n_first == 43
+    # a second download gets the header only: the entry is already out
+    second = client.get("/export/2025-11-10.csv?fmt=odoo")
+    assert "PEP-OKCON-2025-11-10" not in second.text
+    assert len(second.text.strip().splitlines()) - 1 == 0
+    page = client.get("/?day=2025-11-10").text
+    assert "already been downloaded or posted" in page
+    assert "Importing the same day twice would book it twice" in page
+    # but it can be fetched again deliberately
+    again = client.get("/export/2025-11-10.csv?fmt=odoo&again=yes")
+    assert "PEP-OKCON-2025-11-10" in again.text
+    assert len(again.text.strip().splitlines()) - 1 == 43

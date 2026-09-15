@@ -199,7 +199,9 @@ def dashboard(request: Request, day: Optional[str] = None, user: User = Depends(
         rows.append({"code": code, "name": p.get("name", code), "pms": p.get("pms", ""), "run": r,
                      "result": RunResult.from_json(r["result_json"]) if r else None})
     ready = [r for r in runs if r["status"] == "ok"]
-    return render(request, "dashboard.html", day=d, rows=rows, ready=ready,
+    waiting = [r for r in ready if not r["exported_at"] and not r["posted_at"]]
+    already = [r for r in ready if r["exported_at"] or r["posted_at"]]
+    return render(request, "dashboard.html", day=d, rows=rows, ready=ready, waiting=waiting, already=already,
                   prev_day=(d - timedelta(days=1)).isoformat(), next_day=(d + timedelta(days=1)).isoformat(),
                   dates=state.db.dates_with_runs())
 
@@ -257,10 +259,14 @@ def reprocess(run_id: int, user: User = Depends(require_admin)):
 
 
 # ------------------------------------------------------------------ admin: export
-def _entries_for(day: str, only_approved: bool) -> list:
+def _entries_for(day: str, only_approved: bool, include_exported: bool = False) -> list:
+    """Balanced entries for a day.  Already-downloaded ones are left out unless asked for:
+    handing the same entry out twice is how a day gets booked twice."""
     out = []
     for r in state.db.runs_for_date(day):
         if r["status"] != "ok" or (only_approved and not r["approved_at"]):
+            continue
+        if r["exported_at"] and not include_exported:
             continue
         res = RunResult.from_json(r["result_json"])
         if res.entry:
@@ -269,9 +275,10 @@ def _entries_for(day: str, only_approved: bool) -> list:
 
 
 @app.get("/export/{day}.csv")
-def export_day(day: str, fmt: str = "odoo", approved: str = "all", user: User = Depends(require_admin)):
+def export_day(day: str, fmt: str = "odoo", approved: str = "all", again: str = "no",
+               user: User = Depends(require_admin)):
     date.fromisoformat(day)
-    pairs = _entries_for(day, approved == "yes")
+    pairs = _entries_for(day, approved == "yes", include_exported=(again == "yes"))
     entries = [e for _, e in pairs]
     body = entries_to_odoo_csv(entries) if fmt == "odoo" else entries_to_flat_csv(entries)
     for run_id, _ in pairs:

@@ -36,12 +36,27 @@
   </form>
   {% else %}
   <h2>Export for {{ day }}</h2>
-  <p class="small">{{ ready|length }} balanced entr{{ 'y' if ready|length == 1 else 'ies' }}. The Odoo format is the Journal Entries import layout; the flat format is one row per line for Excel.</p>
+  {% if not ready %}
+    <p class="small">Nothing balanced for this day yet.</p>
+  {% elif waiting %}
+    <p class="small">{{ waiting|length }} entr{{ 'y' if waiting|length == 1 else 'ies' }} ready to take{% if already %},
+      {{ already|length }} already downloaded or posted and therefore left out{% endif %}.
+      The Odoo format is the Journal Entries import layout; the flat format is one row per line for Excel.</p>
+  {% else %}
+    <p class="small">All {{ already|length }} balanced entr{{ 'y' if already|length == 1 else 'ies' }} for this day have
+      already been downloaded or posted, so a download now returns nothing.
+      Importing the same day twice would book it twice.</p>
+  {% endif %}
   <div class="row">
     <a class="btn" href="/export/{{ day }}.csv?fmt=odoo">Download Odoo import CSV</a>
     <a class="btn secondary" href="/export/{{ day }}.csv?fmt=odoo&approved=yes">Approved only</a>
     <a class="btn secondary" href="/export/{{ day }}.csv?fmt=flat">Flat CSV</a>
   </div>
+  {% if already %}
+  <p class="small">Need them again (lost the file, the import failed)?
+    <a href="/export/{{ day }}.csv?fmt=odoo&again=yes">Download all {{ ready|length }} again</a> &mdash;
+    only if the earlier file never reached Odoo.</p>
+  {% endif %}
   {% endif %}
 </div>
 {% if dates %}<p class="small">Days with uploads: {% for d in dates %}<a href="/?day={{ d }}">{{ d }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
