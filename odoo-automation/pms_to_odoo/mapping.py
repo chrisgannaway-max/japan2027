@@ -184,6 +184,18 @@ class GLMapping:
         # debit and signed: positive -> debit
         return (amt, Decimal("0")) if amount >= 0 else (Decimal("0"), amt)
 
+    def unmapped_lines(self, report: DailyReport) -> list[ReportLine]:
+        """The lines that would make build_entry fail: no rule, not ignored, not zero."""
+        out = []
+        for line in report.lines:
+            if line.section == "transfer" and not self.book_transfers:
+                continue
+            if self.is_ignored(line) or line.amount == 0:
+                continue
+            if self.find_rule(line) is None:
+                out.append(line)
+        return out
+
     def coverage_report(self, report: DailyReport) -> list[tuple[str, str, str, str]]:
         """(label, section, amount, account-or-status) for every line: for --dry-run output."""
         out = []

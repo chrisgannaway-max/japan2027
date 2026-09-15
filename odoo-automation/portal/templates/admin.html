@@ -12,6 +12,15 @@
   {% endif %}
 </div>
 <div class="card">
+  <h2>Account mapping</h2>
+  <p class="small">Chart of accounts: {% if accounts_count %}{{ accounts_count }} loaded{% else %}<b>not loaded</b>{% endif %} &middot; <a href="/admin/accounts">manage</a></p>
+  <form method="post" action="/admin/mapping/import/worksheet" enctype="multipart/form-data" class="row">
+    <label>Filled-in mapping worksheet <input id="ws_file" type="file" name="file" accept=".xlsx" required></label>
+    <button class="btn" type="submit">Import account codes</button>
+  </form>
+  <p class="small">Each tab is matched to its PMS and its filled rows become rules on every property using that system.</p>
+</div>
+<div class="card">
   <div class="row" style="justify-content:space-between"><h2>Properties</h2>{% if store_mode == 'db' %}<a class="btn" href="/admin/properties/new">Add property</a>{% endif %}</div>
   <div class="tablewrap"><table>
     <thead><tr><th>Code</th><th>Name</th><th>PMS</th><th>Report id / name</th><th>Odoo company</th><th>Analytic</th><th>Journal</th><th>Enabled</th><th></th></tr></thead>

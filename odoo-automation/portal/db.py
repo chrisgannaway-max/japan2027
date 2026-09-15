@@ -55,6 +55,13 @@ CREATE TABLE IF NOT EXISTS invoices (
     posted_at TEXT,
     odoo_move_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS accounts (
+    code TEXT PRIMARY KEY,
+    name TEXT,
+    account_type TEXT,
+    source TEXT,
+    updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS vendor_accounts (
     vendor_key TEXT PRIMARY KEY,
     vendor_name TEXT,
@@ -178,3 +185,29 @@ class Database:
             c.execute("INSERT INTO vendor_accounts(vendor_key, vendor_name, account_code, updated_at) VALUES(?,?,?,?) "
                       "ON CONFLICT(vendor_key) DO UPDATE SET account_code=excluded.account_code, vendor_name=excluded.vendor_name, "
                       "updated_at=excluded.updated_at", (key, vendor_name, account_code, datetime.now().isoformat(timespec="seconds")))
+
+    # ---------------------------------------------------------------- chart of accounts
+    def replace_accounts(self, rows: list[dict], source: str) -> int:
+        """Replace the stored chart of accounts. rows: {code, name, account_type}."""
+        now = datetime.now().isoformat(timespec="seconds")
+        clean = [(str(r["code"]).strip(), (r.get("name") or "").strip(),
+                  (r.get("account_type") or "").strip(), source, now)
+                 for r in rows if str(r.get("code") or "").strip()]
+        with self._conn() as c:
+            c.execute("DELETE FROM accounts")
+            c.executemany("INSERT OR REPLACE INTO accounts(code, name, account_type, source, updated_at) "
+                          "VALUES(?,?,?,?,?)", clean)
+        return len(clean)
+
+    def list_accounts(self, q: str = "", limit: int = 2000) -> list[sqlite3.Row]:
+        with self._conn() as c:
+            if q:
+                like = f"%{q}%"
+                return c.execute("SELECT * FROM accounts WHERE code LIKE ? OR name LIKE ? ORDER BY code LIMIT ?",
+                                 (like, like, limit)).fetchall()
+            return c.execute("SELECT * FROM accounts ORDER BY code LIMIT ?", (limit,)).fetchall()
+
+    def accounts_info(self) -> dict:
+        with self._conn() as c:
+            row = c.execute("SELECT COUNT(*) n, MAX(updated_at) at, MAX(source) src FROM accounts").fetchone()
+        return {"count": row["n"], "updated_at": row["at"], "source": row["src"]}

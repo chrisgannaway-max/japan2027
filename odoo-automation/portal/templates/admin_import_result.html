@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}Worksheet imported{% endblock %}
+{% block body %}
+<h1>Worksheet imported</h1>
+<div class="card">
+  <h2>Applied</h2>
+  {% if applied %}<ul>{% for a in applied %}<li>{{ a }}</li>{% endfor %}</ul>{% else %}<p class="small">Nothing was applied.</p>{% endif %}
+</div>
+{% if skipped %}
+<div class="card"><h2>Skipped</h2><ul>{% for s in skipped %}<li class="small">{{ s }}</li>{% endfor %}</ul></div>
+{% endif %}
+<p><a class="btn" href="/admin">Back to settings</a></p>
+{% endblock %}

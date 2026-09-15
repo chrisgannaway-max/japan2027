@@ -46,6 +46,7 @@ class RunResult:
     warnings: list[str] = field(default_factory=list)
     stats: dict[str, Decimal] = field(default_factory=dict)
     companions: list[str] = field(default_factory=list)
+    unmapped: list[dict] = field(default_factory=list)   # {label, code, section, amount} needing an account
 
     @property
     def label(self) -> str:
@@ -60,6 +61,7 @@ class RunResult:
             "report_id": self.report_id, "property_name": self.property_name, "ref": self.ref,
             "coverage": self.coverage, "warnings": self.warnings,
             "stats": {k: str(v) for k, v in self.stats.items()}, "companions": self.companions,
+            "unmapped": self.unmapped,
             "entry": None,
         }
         if self.entry:
@@ -79,7 +81,8 @@ class RunResult:
                 business_date=date.fromisoformat(d["business_date"]) if d.get("business_date") else None,
                 report_id=d.get("report_id", ""), property_name=d.get("property_name", ""), ref=d.get("ref", ""),
                 coverage=[tuple(c) for c in d.get("coverage", [])], warnings=d.get("warnings", []),
-                stats={k: Decimal(v) for k, v in d.get("stats", {}).items()}, companions=d.get("companions", []))
+                stats={k: Decimal(v) for k, v in d.get("stats", {}).items()}, companions=d.get("companions", []),
+                unmapped=d.get("unmapped", []))
         e = d.get("entry")
         if e:
             r.entry = JournalEntry(ref=e["ref"], date=date.fromisoformat(e["date"]), journal_code=e["journal_code"],
@@ -209,6 +212,8 @@ def process_file(file: Path, props: dict[str, dict], property_code: Optional[str
         except MappingError as e:
             res.status = "unbalanced" if "does not balance" in str(e) else "unmapped"
             res.message = str(e)
+            res.unmapped = [{"label": l.label, "code": l.code, "section": l.section, "amount": str(l.amount)}
+                            for l in mapping.unmapped_lines(report)]
             return res
         res.status = "ok"
         res.message = f"{len(res.entry.lines)} journal lines, total {res.entry.total_debit:,.2f}"

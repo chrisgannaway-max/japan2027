@@ -206,6 +206,30 @@ template of the client's Odoo version (Accounting > Journal Entries > Import > t
 The same pipeline (`pms_to_odoo/pipeline.py`) drives the CLI `batch` command and the portal,
 so a file behaves identically on either path.
 
+## Account mapping, without editing YAML
+
+The mapping files can be filled in from the portal instead of by hand.
+
+**1. Load the chart of accounts once** on `/admin/accounts`, either from a CSV with a `code`
+column or straight out of Odoo when `ODOO_URL` and `ODOO_API_KEY` are set. Every account box
+in the portal then becomes a dropdown.
+
+**2. Import the filled-in mapping worksheet** on `/admin`. Each tab is matched to its PMS and
+its filled rows become rules on every property using that system, so answering the worksheet
+once covers every hotel on that brand.
+
+**3. Map whatever is left as it appears.** A report containing a line no rule covers comes
+back as *needs mapping* rather than failing. The dashboard and the run page link to a screen
+listing only those lines, with the amount, the PMS code, and a suggested account taken from
+another property already using the same PMS. Choosing accounts writes rules at the top of
+that property's mapping, re-runs the report, and lands on the finished entry. "Not an
+accounting line" writes an ignore pattern instead.
+
+Rules written this way match the exact label (or the PMS transaction code where the report
+prints one), are inserted above any hand-written catch-all so they win, and are validated
+before they are saved. Comments in the file are preserved, so a mapping stays readable
+whether it was written by hand or through the portal.
+
 ## Vendor invoices (no AI required)
 
 Managers upload an invoice on `/invoices`; the reader pre-fills the fields; the expense
@@ -269,6 +293,7 @@ pms_to_odoo/
     excel_template.py  GM spreadsheet reader
   invoices/            rules reader (no AI), optional Claude reader, vendor bill creation
   pipeline.py          detect -> parse -> map -> balance, shared by CLI and portal
+  mapping_edit.py      writes new rules into a mapping without disturbing it; suggestions
   export.py            Odoo Journal Entries import CSV / flat CSV
   cli.py               inspect / daily / batch / invoice / accounts / check
 portal/                FastAPI site: login, manager upload, admin dashboard, review, export

@@ -28,11 +28,14 @@ from pms_to_odoo.invoices.to_odoo import load_expense_map
 from pms_to_odoo.invoices.accounts import AccountAssigner
 from pms_to_odoo.journal import format_entry, post_entry
 from pms_to_odoo.odoo_client import OdooClient, OdooError, OdooSettings
-from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, process_file
+from pms_to_odoo.mapping import GLMapping
+from pms_to_odoo.mapping_edit import insert_rules, rule_for, suggest_account
+from pms_to_odoo.parsers import get_parser
+from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, process_file, resolve
 
 from .auth import SessionSigner, User, UserStore, hash_password
 from .db import Database
-from .store import ConfigStore, PROPERTY_COLUMNS, store_mode
+from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -487,7 +490,8 @@ def require_db_store():
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_home(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = ""):
-    ctx = dict(msg=msg, err=err, config_path=str(CONFIG), users_path=str(USERS))
+    ctx = dict(msg=msg, err=err, config_path=str(CONFIG), users_path=str(USERS),
+               accounts_count=state.db.accounts_info()["count"])
     if state.store is not None:
         ctx["properties"] = [state.store.get_property(c) | {"enabled": state.store.get_property(c)["enabled"]} for c in
                              state.store.properties(include_disabled=True)]
@@ -549,3 +553,184 @@ async def admin_user_save(request: Request, user: User = Depends(require_admin))
         return RedirectResponse(f"/admin?err={e}", status_code=303)
     state.reload_config()
     return RedirectResponse("/admin?msg=User+saved", status_code=303)
+
+
+# ------------------------------------------------------------------ chart of accounts
+def _mapping_loader(prop: dict):
+    """GLMapping for a property, however its mapping is stored (used for suggestions)."""
+    import tempfile
+    text = read_mapping_text(prop, state.store)
+    if not text.strip():
+        return None
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        fh.write(text); tmp = fh.name
+    try:
+        return GLMapping.load(tmp)
+    finally:
+        Path(tmp).unlink(missing_ok=True)
+
+
+def _accounts() -> list:
+    return state.db.list_accounts()
+
+
+@app.get("/admin/accounts", response_class=HTMLResponse)
+def accounts_page(request: Request, user: User = Depends(require_admin), q: str = "", msg: str = "", err: str = ""):
+    return render(request, "admin_accounts.html", accounts=state.db.list_accounts(q, 500),
+                  info=state.db.accounts_info(), q=q, msg=msg, err=err)
+
+
+@app.post("/admin/accounts/upload")
+async def accounts_upload(request: Request, user: User = Depends(require_admin), file: UploadFile = File(...)):
+    import csv as _csv
+    import io as _io
+    raw = (await file.read()).decode("utf-8-sig", "replace")
+    rows = list(_csv.DictReader(_io.StringIO(raw)))
+    if not rows:
+        return RedirectResponse("/admin/accounts?err=That+file+has+no+rows", status_code=303)
+    keys = {k.strip().lower(): k for k in rows[0]}
+    def pick(*names):
+        for n in names:
+            if n in keys: return keys[n]
+        return None
+    kc, kn, kt = pick("code", "account code", "id"), pick("name", "account name", "label"), pick("type", "account_type", "account type")
+    if not kc:
+        return RedirectResponse("/admin/accounts?err=No+'code'+column+found", status_code=303)
+    n = state.db.replace_accounts([{"code": r.get(kc), "name": r.get(kn) if kn else "",
+                                    "account_type": r.get(kt) if kt else ""} for r in rows], f"upload: {file.filename}")
+    return RedirectResponse(f"/admin/accounts?msg=Loaded+{n}+accounts", status_code=303)
+
+
+@app.post("/admin/accounts/pull")
+def accounts_pull(user: User = Depends(require_admin), company: str = Form("")):
+    if not state.odoo_enabled:
+        return RedirectResponse("/admin/accounts?err=Odoo+connection+not+configured", status_code=303)
+    try:
+        client = OdooClient.connect(OdooSettings.from_env())
+        rows = client.chart_of_accounts(client.company_id(company or None))
+    except OdooError as e:
+        return RedirectResponse(f"/admin/accounts?err=Odoo+error:+{e}", status_code=303)
+    n = state.db.replace_accounts(rows, "pulled from Odoo")
+    return RedirectResponse(f"/admin/accounts?msg=Pulled+{n}+accounts+from+Odoo", status_code=303)
+
+
+# ------------------------------------------------------------------ needs mapping
+@app.get("/admin/mapping/{run_id}", response_class=HTMLResponse)
+def mapping_page(request: Request, run_id: int, user: User = Depends(require_admin), err: str = ""):
+    r = state.db.get_run(run_id)
+    if not r:
+        raise HTTPException(404)
+    res = RunResult.from_json(r["result_json"])
+    prop = state.props.get(res.property_code)
+    if prop is None:
+        raise HTTPException(400, f"Property {res.property_code} is not configured")
+    rows = []
+    for line in res.unmapped:
+        sug = suggest_account(line, res.pms, state.props, _mapping_loader, exclude=res.property_code)
+        rows.append({**line, "suggested": sug.account, "suggested_from": sug.source})
+    return render(request, "admin_mapping.html", run=r, res=res, rows=rows, accounts=_accounts(), err=err)
+
+
+@app.post("/admin/mapping/{run_id}")
+async def mapping_save(request: Request, run_id: int, user: User = Depends(require_admin)):
+    r = state.db.get_run(run_id)
+    if not r:
+        raise HTTPException(404)
+    res = RunResult.from_json(r["result_json"])
+    prop = state.props.get(res.property_code)
+    if prop is None:
+        raise HTTPException(400, f"Property {res.property_code} is not configured")
+    form = await request.form()
+    new_rules, ignored = [], 0
+    for i, line in enumerate(res.unmapped):
+        choice = (form.get(f"account_{i}") or "").strip()
+        if not choice:
+            continue
+        if choice == "__ignore__":
+            ignored += 1
+            continue
+        rule = rule_for(line["label"], line.get("code", ""), line.get("section", ""), choice)
+        if rule not in new_rules:          # the same label can appear on several report lines
+            new_rules.append(rule)
+    if not new_rules and not ignored:
+        return RedirectResponse(f"/admin/mapping/{run_id}?err=Nothing+chosen", status_code=303)
+    text = read_mapping_text(prop, state.store)
+    if ignored:                       # "not an accounting line" -> an ignore pattern, not a rule
+        from pms_to_odoo.mapping_edit import escape_label, yq
+        pats = [f"  - {yq('^' + escape_label(l['label']) + '$')}"
+                for i, l in enumerate(res.unmapped) if (form.get(f"account_{i}") or "") == "__ignore__"]
+        if re.search(r"^ignore:", text, re.M):
+            text = re.sub(r"^ignore:.*$", "ignore:\n" + "\n".join(pats), text, count=1, flags=re.M)
+        else:
+            text = text.rstrip("\n") + "\nignore:\n" + "\n".join(pats) + "\n"
+    text = insert_rules(text, new_rules, f"# added from the portal {date.today().isoformat()} by {user.username}")
+    try:
+        where = write_mapping_text(prop, state.store, text)
+    except ValueError as e:
+        return RedirectResponse(f"/admin/mapping/{run_id}?err={e}", status_code=303)
+    state.reload_config()
+    res2 = process_file(Path(r["stored_path"]), state.props, res.property_code)
+    new_id = state.db.add_run(uploaded_by=f"{user.username} (remapped)", property_code=res2.property_code,
+                              business_date=res2.business_date.isoformat() if res2.business_date else None,
+                              pms=res2.pms, ref=res2.ref, status=res2.status, message=res2.message,
+                              file_name=r["file_name"], stored_path=r["stored_path"], result_json=res2.to_json())
+    print(f"[mapping] {len(new_rules)} rule(s), {ignored} ignore(s) for {res.property_code} -> {where}")
+    return RedirectResponse(f"/runs/{new_id}" if res2.status == "ok" else f"/admin/mapping/{new_id}", status_code=303)
+
+
+# ------------------------------------------------------------------ worksheet import
+def _pms_from_sheet(name: str) -> Optional[str]:
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", name) if w]
+    for w in reversed(words):
+        try:
+            return get_parser(w).pms
+        except KeyError:
+            continue
+    return None
+
+
+@app.post("/admin/mapping/import/worksheet", response_class=HTMLResponse)
+async def import_worksheet(request: Request, user: User = Depends(require_admin), file: UploadFile = File(...)):
+    import io as _io
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(_io.BytesIO(await file.read()), data_only=True)
+    except Exception as e:  # noqa: BLE001
+        return RedirectResponse(f"/admin?err=Could+not+read+that+workbook:+{e}", status_code=303)
+    applied, skipped = [], []
+    for sheet in wb.worksheets:
+        pms = _pms_from_sheet(sheet.title)
+        if pms is None:
+            skipped.append(f"{sheet.title}: not a PMS tab")
+            continue
+        head = {str(c.value).strip().lower(): c.column for c in sheet[4] if c.value}
+        need = ("section", "pms code", "line as printed on the report", "your account code")
+        if not all(k in head for k in need):
+            skipped.append(f"{sheet.title}: unexpected columns")
+            continue
+        rules = []
+        for row in range(5, sheet.max_row + 1):
+            acct = sheet.cell(row, head["your account code"]).value
+            label = sheet.cell(row, head["line as printed on the report"]).value
+            if not acct or not label:
+                continue
+            rules.append(rule_for(str(label), str(sheet.cell(row, head["pms code"]).value or "").strip(),
+                                  str(sheet.cell(row, head["section"]).value or "").strip(), str(acct).strip()))
+        if not rules:
+            skipped.append(f"{sheet.title}: no account codes filled in")
+            continue
+        targets = [c for c, p in state.props.items() if str(p.get("pms", "")).upper() == pms]
+        if not targets:
+            skipped.append(f"{sheet.title}: no property uses {pms}")
+            continue
+        for code in targets:
+            prop = state.props[code]
+            text = insert_rules(read_mapping_text(prop, state.store), rules,
+                                f"# imported from the mapping worksheet {date.today().isoformat()} by {user.username}")
+            try:
+                write_mapping_text(prop, state.store, text)
+                applied.append(f"{code}: {len(rules)} rules")
+            except ValueError as e:
+                skipped.append(f"{code}: {e}")
+    state.reload_config()
+    return render(request, "admin_import_result.html", applied=applied, skipped=skipped)

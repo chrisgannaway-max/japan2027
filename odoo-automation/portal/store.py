@@ -178,3 +178,30 @@ class ConfigStore:
                            password=u.get("password"), password_hash=u.get("password_hash"))
             counts["users"] += 1
         return counts
+
+
+# --------------------------------------------------------------------- mapping text
+def read_mapping_text(prop: dict, store: Optional[ConfigStore]) -> str:
+    """A property's mapping YAML, from the database in db mode or from its file in yaml mode."""
+    if store is not None:
+        row = store.get_property(prop["code"])
+        if row is not None:
+            return row.get("mapping_yaml") or ""
+    path = resolve(prop, "gl_mapping")
+    return path.read_text() if path and path.exists() else ""
+
+
+def write_mapping_text(prop: dict, store: Optional[ConfigStore], text: str) -> str:
+    """Save it back, validating first.  Returns where it was written, for the audit trail."""
+    ConfigStore._validate_mapping(text)
+    if store is not None:
+        row = store.get_property(prop["code"]) or {}
+        store.save_property(**{**{k: row.get(k) or "" for k in PROPERTY_COLUMNS},
+                               "code": prop["code"], "pms": row.get("pms") or prop.get("pms", ""),
+                               "mapping_yaml": text, "enabled": "1" if row.get("enabled", 1) else "0"})
+        return f"database ({prop['code']})"
+    path = resolve(prop, "gl_mapping")
+    if not path:
+        raise ValueError(f"{prop['code']}: no gl_mapping file configured")
+    path.write_text(text)
+    return str(path)

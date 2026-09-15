@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% block title %}Chart of accounts{% endblock %}
+{% block body %}
+<h1>Chart of accounts</h1>
+{% if msg %}<p class="pill ok">{{ msg }}</p>{% endif %}{% if err %}<p class="err">{{ err }}</p>{% endif %}
+<div class="card">
+  {% if info.count %}
+    <p>{{ info.count }} accounts loaded &middot; <span class="small">{{ info.source }}, {{ info.updated_at }}</span></p>
+  {% else %}
+    <p class="small">No accounts loaded yet. Until they are, the mapping screen asks you to type account codes by hand.</p>
+  {% endif %}
+  <div class="row">
+    <form method="post" action="/admin/accounts/upload" enctype="multipart/form-data" class="row">
+      <label>CSV with a <code>code</code> column (plus <code>name</code>, <code>type</code>)
+        <input id="coa_file" type="file" name="file" accept=".csv" required></label>
+      <button class="btn" type="submit">Load from CSV</button>
+    </form>
+    <form method="post" action="/admin/accounts/pull" class="row">
+      <label>Company <input id="coa_company" name="company" placeholder="(all)"></label>
+      <button class="btn secondary" type="submit" {% if not odoo_enabled %}disabled title="Set ODOO_URL and ODOO_API_KEY first"{% endif %}>Pull from Odoo</button>
+    </form>
+  </div>
+</div>
+<div class="card">
+  <form method="get" action="/admin/accounts" class="row">
+    <input id="coa_q" name="q" value="{{ q }}" placeholder="search code or name"><button class="btn secondary" type="submit">Search</button>
+    {% if q %}<a class="btn secondary" href="/admin/accounts">Clear</a>{% endif %}
+  </form>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>Name</th><th>Type</th></tr></thead>
+    <tbody>{% for a in accounts %}<tr><td>{{ a.code }}</td><td>{{ a.name }}</td><td class="small">{{ a.account_type }}</td></tr>
+    {% else %}<tr><td colspan="3" class="small">Nothing loaded.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

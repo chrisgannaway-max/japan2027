@@ -20,7 +20,7 @@
         <td class="n">{% if row.result and row.result.entry %}{{ '{:,.2f}'.format(row.result.entry.total_debit) }}{% endif %}</td>
         <td class="small">{% if row.run %}{{ row.run.created_at }}<br>{{ row.run.uploaded_by }}{% endif %}</td>
         <td class="small">{% if row.result %}{{ row.result.message[:160] }}{% for w in row.result.warnings %}<br>⚠ {{ w }}{% endfor %}{% endif %}</td>
-        <td>{% if row.run %}<a href="/runs/{{ row.run.id }}">review</a>{% endif %}</td>
+        <td>{% if row.run %}<a href="/runs/{{ row.run.id }}">review</a>{% if row.run.status == 'unmapped' %}<br><a href="/admin/mapping/{{ row.run.id }}">map lines</a>{% endif %}{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody></table></div>

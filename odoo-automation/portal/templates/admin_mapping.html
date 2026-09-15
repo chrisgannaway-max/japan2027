@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block title %}Map lines &middot; {{ res.property_code }}{% endblock %}
+{% block body %}
+<h1>These lines need an account</h1>
+<p class="small">{{ res.property_code }} &middot; {{ res.pms }} &middot; business date {{ res.business_date }} &middot; from {{ run.file_name }}</p>
+{% if err %}<p class="err">{{ err }}</p>{% endif %}
+{% if not accounts %}
+<div class="card"><p class="err">No chart of accounts loaded, so you will have to type codes by hand.
+  <a href="/admin/accounts">Load it once</a> and every box below becomes a dropdown.</p></div>
+{% endif %}
+<form method="post" action="/admin/mapping/{{ run.id }}">
+<div class="card">
+  <p class="small">Choosing an account writes a rule that matches this exact line, at the top of {{ res.property_code }}'s
+    mapping, and then re-runs the report. Leave a box empty to decide it later. Anything you pick is remembered for
+    every future night.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Line as printed</th><th>Code</th><th>Section</th><th class="n">Amount</th><th>Account</th><th>Suggestion</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.label }}</td><td>{{ row.code }}</td><td class="small">{{ row.section }}</td>
+        <td class="n">{{ '{:,.2f}'.format(row.amount|float) }}</td>
+        <td>
+          {% if accounts %}
+          <select id="account_{{ loop.index0 }}" name="account_{{ loop.index0 }}">
+            <option value="">decide later</option>
+            {% for a in accounts %}<option value="{{ a.code }}" {% if a.code == row.suggested %}selected{% endif %}>{{ a.code }}{% if a.name %} &mdash; {{ a.name }}{% endif %}</option>{% endfor %}
+            <option value="__ignore__">&mdash; not an accounting line, ignore it &mdash;</option>
+          </select>
+          {% else %}
+          <input id="account_{{ loop.index0 }}" name="account_{{ loop.index0 }}" value="{{ row.suggested }}" placeholder="account code or 'ignore'" size="18">
+          {% endif %}
+        </td>
+        <td class="small">{% if row.suggested %}<span class="pill ok">{{ row.suggested }}</span> from {{ row.suggested_from }}{% else %}&mdash;{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="small">Nothing left to map.</td></tr>{% endfor %}
+    </tbody></table></div>
+  <div class="row"><button class="btn" type="submit">Save and re-run</button><a class="btn secondary" href="/runs/{{ run.id }}">Back to the run</a></div>
+</div>
+</form>
+{% endblock %}
