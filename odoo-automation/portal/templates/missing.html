@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% block title %}Who has not reported{% endblock %}
+{% block body %}
+<div class="row" style="justify-content:space-between">
+  <h1>Who has not reported</h1>
+  <form method="get" action="/missing" class="row">
+    <label>Last <input id="days" type="number" name="days" value="{{ days }}" min="1" max="60" style="width:70px"> nights</label>
+    <label>ending <input id="day" type="date" name="day" value="{{ end }}"></label>
+    <button class="btn secondary" type="submit">Show</button>
+    <a class="btn secondary" href="/missing.csv?days={{ days }}&day={{ end }}">CSV</a>
+  </form>
+</div>
+
+<div class="card">
+  {% if missing_last_night %}
+    <p><span class="pill bad">{{ missing_last_night|length }} did not upload</span>
+      for the night of {{ end }}: <b>{{ missing_last_night|join(', ') }}</b></p>
+  {% else %}
+    <p><span class="pill ok">Everyone reported</span> for the night of {{ end }}.</p>
+  {% endif %}
+  {% if problems_last_night %}
+    <p><span class="pill warn">{{ problems_last_night|length }} uploaded but did not go through</span>:
+      <b>{{ problems_last_night|join(', ') }}</b></p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <p class="small">A night-audit pack covers the night before, so the last column is last night, uploaded this
+    morning. Green is balanced, amber uploaded but stuck, red nothing received. Blank means the property had not
+    started using the portal yet.</p>
+  <div class="tablewrap"><table class="grid">
+    <thead><tr><th>Property</th><th>PMS</th>
+      {% for d in dates %}<th class="day">{{ d[8:10] }}/{{ d[5:7] }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><b>{{ row.code }}</b><br><span class="small">{{ row.name }}</span></td>
+        <td class="small">{{ row.pms }}</td>
+        {% for cell in row.cells %}
+          <td class="cell {{ cell.state }}" title="{{ cell.date }}{% if cell.run %} - {{ cell.run.status }}, uploaded {{ cell.run.created_at }} by {{ cell.run.uploaded_by }}{% endif %}">
+            {% if cell.run %}<a href="/runs/{{ cell.run.id }}">{{ '✓' if cell.state == 'ok' else '!' }}</a>
+            {% elif cell.state == 'missing' %}&times;{% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+</div>
+<style>
+table.grid td.cell{text-align:center;font-weight:700;width:30px;padding:5px 2px}
+table.grid th.day{text-align:center;font-size:.7rem;white-space:nowrap}
+td.cell.ok{background:var(--accent-soft);color:var(--accent)}
+td.cell.problem{background:var(--warn-soft);color:var(--warn)}
+td.cell.missing{background:var(--bad-soft);color:var(--bad)}
+td.cell a{text-decoration:none;color:inherit}
+</style>
+{% endblock %}

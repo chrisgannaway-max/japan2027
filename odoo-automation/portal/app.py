@@ -784,3 +784,63 @@ def run_to_invoice(run_id: int, user: User = Depends(require_user)):
     state.db.mark(run_id, superseded=1, status="moved_to_invoice",
                   message=f"moved to invoice #{inv_id} by {user.username}")
     return RedirectResponse(f"/invoices/{inv_id}", status_code=303)
+
+
+# ------------------------------------------------------------------ who has not reported
+def _coverage_grid(days: int, end: Optional[date] = None) -> dict:
+    """One row per property, one column per business date, for the last `days` nights.
+
+    A night-audit pack covers the night before, so "last night" means yesterday's business
+    date, uploaded this morning.  Three states per cell: reported and balanced, reported
+    with a problem, or nothing at all.  Dates before a property's first-ever upload are
+    left blank rather than flagged, so onboarding a hotel does not paint the page red.
+    """
+    end = end or date.today() - timedelta(days=1)
+    dates = [(end - timedelta(days=n)).isoformat() for n in range(days - 1, -1, -1)]
+    runs = state.db.runs_between(dates[0], dates[-1])
+    by_prop: dict[str, dict[str, dict]] = {}
+    for r in runs:
+        by_prop.setdefault(r["property_code"], {})[r["business_date"]] = r
+    first_seen = state.db.first_business_date()
+    rows, missing_last_night, problems_last_night = [], [], []
+    for code, prop in state.props.items():
+        cells, live_from = [], first_seen.get(code)
+        for d in dates:
+            run = by_prop.get(code, {}).get(d)
+            if run is None:
+                state_ = "before" if (live_from and d < live_from) or not live_from else "missing"
+            else:
+                state_ = "ok" if run["status"] == "ok" else "problem"
+            cells.append({"date": d, "state": state_, "run": run})
+        rows.append({"code": code, "name": prop.get("name", code), "pms": prop.get("pms", ""), "cells": cells})
+        if cells[-1]["state"] == "missing":
+            missing_last_night.append(code)
+        elif cells[-1]["state"] == "problem":
+            problems_last_night.append(code)
+    return {"dates": dates, "rows": rows, "end": end,
+            "missing_last_night": missing_last_night, "problems_last_night": problems_last_night}
+
+
+@app.get("/missing", response_class=HTMLResponse)
+def missing_report(request: Request, days: int = 14, day: Optional[str] = None,
+                   user: User = Depends(require_admin)):
+    days = max(1, min(days, 60))
+    grid = _coverage_grid(days, date.fromisoformat(day) if day else None)
+    return render(request, "missing.html", days=days, **grid)
+
+
+@app.get("/missing.csv")
+def missing_csv(days: int = 14, day: Optional[str] = None, user: User = Depends(require_admin)):
+    import csv as _csv
+    import io as _io
+    days = max(1, min(days, 60))
+    grid = _coverage_grid(days, date.fromisoformat(day) if day else None)
+    buf = _io.StringIO(); w = _csv.writer(buf)
+    w.writerow(["Property", "Name", "PMS", "Business date", "State", "Status", "Uploaded at", "Uploaded by"])
+    for row in grid["rows"]:
+        for cell in row["cells"]:
+            r = cell["run"]
+            w.writerow([row["code"], row["name"], row["pms"], cell["date"], cell["state"],
+                        r["status"] if r else "", r["created_at"] if r else "", r["uploaded_by"] if r else ""])
+    return Response(buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="missing-uploads-{grid["end"]}.csv"'})

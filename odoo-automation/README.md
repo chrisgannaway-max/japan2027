@@ -200,6 +200,7 @@ PORTAL_SECRET=$(openssl rand -hex 32) python -m portal serve --port 8000
 | Manager  | `/upload`          | **Night audit.** Picks their property (or lets the report identify it), uploads PDF/CSV/EML. The pack is parsed, mapped and balanced on the spot and the result is shown: balanced, needs mapping, does not balance, or not a report we book. |
 | Admin    | `/` dashboard      | One row per property for a business date: not uploaded / balanced / needs mapping / posted, entry total, warnings. |
 | Admin    | `/runs/<id>`       | Review screen: T-account, every report line and the account it hits, control totals. Approve, download the Odoo import CSV, send to Odoo (when `ODOO_*` is configured), or re-run after editing a mapping file. |
+| Admin    | `/missing`         | **Who has not reported.** A grid of the last N nights, one row per property: green balanced, amber uploaded but stuck, red nothing received. Names who missed last night at the top, and downloads as CSV for chasing people. |
 | Admin    | `/export/<day>.csv`| All balanced (or approved-only) entries for the day in Odoo's Journal Entries import layout, or a flat one-row-per-line CSV for Excel. |
 | Manager  | `/invoices`        | **Vendor invoices.** A separate page: see the invoices section below. |
 

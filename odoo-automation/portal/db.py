@@ -104,6 +104,20 @@ class Database:
             return c.execute("SELECT * FROM runs WHERE business_date=? AND superseded=0 ORDER BY property_code, id DESC",
                              (business_date,)).fetchall()
 
+    def runs_between(self, start: str, end: str) -> list[sqlite3.Row]:
+        """Live (non-superseded) runs with a business date in [start, end]."""
+        with self._conn() as c:
+            return c.execute("SELECT * FROM runs WHERE superseded=0 AND business_date BETWEEN ? AND ? "
+                             "ORDER BY business_date, property_code, id", (start, end)).fetchall()
+
+    def first_business_date(self) -> dict[str, str]:
+        """property_code -> its earliest business date, so a hotel is not marked missing
+        for the days before it was onboarded."""
+        with self._conn() as c:
+            rows = c.execute("SELECT property_code, MIN(business_date) first FROM runs "
+                             "WHERE business_date IS NOT NULL GROUP BY property_code").fetchall()
+        return {r["property_code"]: r["first"] for r in rows if r["property_code"]}
+
     def recent_runs(self, limit: int = 50, property_codes: Optional[list[str]] = None) -> list[sqlite3.Row]:
         with self._conn() as c:
             if property_codes is not None:
