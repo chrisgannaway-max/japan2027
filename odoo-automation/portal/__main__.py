@@ -13,7 +13,8 @@ elif len(sys.argv) >= 2 and sys.argv[1] == "seed":
     if state.store is None:
         sys.exit("set PORTAL_STORE=db first")
     counts = state.store.import_from_yaml(CONFIG, USERS, overwrite="--overwrite" in sys.argv)
-    print(f"imported {counts['properties']} properties and {counts['users']} users into {state.store.db_path}")
+    print(f"imported {counts['properties']} properties and {counts['users']} users "
+          f"into {state.store.pool.describe()}")
 elif len(sys.argv) >= 2 and sys.argv[1] == "serve":
     import uvicorn
     port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8000

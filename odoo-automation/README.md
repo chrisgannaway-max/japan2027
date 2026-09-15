@@ -73,8 +73,9 @@ Design rules baked in:
 
 ## Setup
 
-**Setting it up for the first time, including how to test e-mail and Odoo for free:
-see [SETUP.md](SETUP.md).**
+**Installing it, on a laptop or on a server: see [INSTALL.md](INSTALL.md).** It covers the
+whole thing in order — dependencies, the hotels and mappings, testing e-mail and Odoo for free,
+PostgreSQL and Supabase Storage, deploying, backups and every setting.
 
 ```bash
 cd odoo-automation
