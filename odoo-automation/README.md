@@ -73,10 +73,13 @@ Design rules baked in:
 
 ## Setup
 
+**Setting it up for the first time, including how to test e-mail and Odoo for free:
+see [SETUP.md](SETUP.md).**
+
 ```bash
 cd odoo-automation
 python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt        # requirements-dev.txt to run the tests
 cp config/properties.example.yaml config/properties.yaml      # edit property list
 cp config/gl_mapping/hilton_pep.example.yaml config/gl_mapping/okcon.yaml   # one per property
 cp config/expense_categories.example.yaml config/expense_categories.yaml

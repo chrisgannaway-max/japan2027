@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8.0
+anthropic>=1.5           # exercised by the invoice tests
+aiosmtpd>=1.4            # a local mail catcher for testing e-mail without signing up anywhere

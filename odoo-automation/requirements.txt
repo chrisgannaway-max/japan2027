@@ -1,16 +1,18 @@
+# Runtime. Everything the portal and the CLI need.
 pyyaml>=6.0
-openpyxl>=3.1
-pypdf>=4.0
-anthropic>=1.5
+openpyxl>=3.1            # Excel: GM templates, the mapping worksheet
+pypdf>=4.0               # PDF text, fallback for pdfplumber
+pdfplumber>=0.11         # layout-preserving PDF text: how the night-audit reports are read
 pydantic>=2.0
-pytest>=8.0
-pdfplumber>=0.11
 fastapi>=0.110
 uvicorn[standard]>=0.27
 jinja2>=3.1
-python-multipart>=0.0.9
+python-multipart>=0.0.9  # file uploads
 httpx>=0.27
-pytesseract>=0.3
+pytesseract>=0.3         # OCR for scanned invoices; needs the tesseract binary too
 pillow>=10
-pyotp>=2.9
+pyotp>=2.9               # two-step sign-in
 qrcode>=7.4
+
+# Optional. The AI invoice reader; everything works without it (INVOICE_READER=rules).
+#   pip install anthropic
