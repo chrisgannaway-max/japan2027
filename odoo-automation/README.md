@@ -193,10 +193,11 @@ PORTAL_SECRET=$(openssl rand -hex 32) python -m portal serve --port 8000
 
 | Who      | Page               | What happens                                                                       |
 |----------|--------------------|------------------------------------------------------------------------------------|
-| Manager  | `/upload`          | Picks their property (or lets the report identify it), uploads PDF/CSV/EML. The pack is parsed, mapped and balanced on the spot and the result is shown: balanced, needs mapping, does not balance, or not a report we book. |
+| Manager  | `/upload`          | **Night audit.** Picks their property (or lets the report identify it), uploads PDF/CSV/EML. The pack is parsed, mapped and balanced on the spot and the result is shown: balanced, needs mapping, does not balance, or not a report we book. |
 | Admin    | `/` dashboard      | One row per property for a business date: not uploaded / balanced / needs mapping / posted, entry total, warnings. |
 | Admin    | `/runs/<id>`       | Review screen: T-account, every report line and the account it hits, control totals. Approve, download the Odoo import CSV, send to Odoo (when `ODOO_*` is configured), or re-run after editing a mapping file. |
 | Admin    | `/export/<day>.csv`| All balanced (or approved-only) entries for the day in Odoo's Journal Entries import layout, or a flat one-row-per-line CSV for Excel. |
+| Manager  | `/invoices`        | **Vendor invoices.** A separate page: see the invoices section below. |
 
 Rules: managers only see their own properties; a new upload for the same property and day
 supersedes the previous unposted run; uploads are kept under `data/uploads/` and the run
@@ -205,6 +206,14 @@ template of the client's Odoo version (Accounting > Journal Entries > Import > t
 
 The same pipeline (`pms_to_odoo/pipeline.py`) drives the CLI `batch` command and the portal,
 so a file behaves identically on either path.
+
+**Night audit and invoices are two separate pages**, because they have different rhythms and
+may end up with different people doing them. Each page recognises the other's files rather
+than mangling them: a night-audit report uploaded as an invoice is refused by name ("that is
+a PEP night-audit report") and not stored, and an invoice uploaded as a night-audit report
+comes back as *Looks like an invoice* with a one-click button to send it across. The check is
+`pms_to_odoo/invoices/sniff.py`, and it scores every one of the six report formats firmly
+negative and a real invoice firmly positive.
 
 ## Account mapping, without editing YAML
 

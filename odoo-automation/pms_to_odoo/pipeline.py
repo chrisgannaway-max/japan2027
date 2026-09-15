@@ -16,6 +16,7 @@ import yaml
 
 from .mapping import GLMapping, MappingError
 from .models import DailyReport, JournalEntry, JournalLine
+from .invoices.sniff import looks_like_invoice
 from .parsers import ExcelTemplateParser, detect_pms, get_parser, read_text
 
 STATUS_LABELS = {
@@ -23,6 +24,8 @@ STATUS_LABELS = {
     "unmapped": "Needs mapping",
     "unbalanced": "Does not balance",
     "unrecognised": "Not a report we book",
+    "looks_like_invoice": "Looks like an invoice",
+    "moved_to_invoice": "Moved to invoices",
     "wrong_pms": "Report is from a different PMS",
     "unknown_property": "Property not recognised",
     "not_allowed": "Property not allowed for this user",
@@ -163,6 +166,7 @@ def process_file(file: Path, props: dict[str, dict], property_code: Optional[str
         res.message = f"Could not read file: {e}"
         return res
     pms = detect_pms(text)
+    maybe_invoice = looks_like_invoice(text) if pms is None else False
     probe = None
     if pms:
         probe = get_parser(pms).parse(file, property_code or "?", business_date)
@@ -174,7 +178,11 @@ def process_file(file: Path, props: dict[str, dict], property_code: Optional[str
     code = property_code or match_property(props, file, res.report_id, res.property_name, pms, allowed)
     if not code or code not in props:
         if not pms:
-            res.status, res.message = "unrecognised", "Could not tell which PMS produced this file."
+            if maybe_invoice:
+                res.status = "looks_like_invoice"
+                res.message = "This is not a night-audit report, but it does look like a vendor invoice."
+            else:
+                res.status, res.message = "unrecognised", "Could not tell which PMS produced this file."
         else:
             res.status = "unknown_property"
             res.message = (f"Report id {res.report_id!r} / name {res.property_name!r} does not match a configured property"
@@ -197,12 +205,18 @@ def process_file(file: Path, props: dict[str, dict], property_code: Optional[str
         res.pms, res.business_date, res.report_id = report.pms, report.business_date, report.pms_property_id
         res.property_name, res.warnings, res.stats = report.property_name, res.warnings + report.warnings, report.stats
         res.companions = report.companions
-        if not report.recognised:
-            res.status, res.message = "unrecognised", "; ".join(report.warnings) or "Not the report this parser books."
-            return res
-        if not report.lines:
-            res.status = "unrecognised"
-            res.message = f"No report lines recognised by the {report.pms} parser; is this the right report for {code}?"
+        if not report.recognised or not report.lines:
+            # an invoice reaches here too when the manager picked a property first, so the
+            # "this is an invoice" answer has to win over the parser's own complaint
+            if maybe_invoice:
+                res.status = "looks_like_invoice"
+                res.message = "This is not a night-audit report, but it does look like a vendor invoice."
+            elif not report.recognised:
+                res.status = "unrecognised"
+                res.message = "; ".join(report.warnings) or "Not the report this parser books."
+            else:
+                res.status = "unrecognised"
+                res.message = f"No report lines recognised by the {report.pms} parser; is this the right report for {code}?"
             return res
         mapping = GLMapping.load(resolve(prop, "gl_mapping"))
         res.coverage = mapping.coverage_report(report)

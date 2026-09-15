@@ -30,7 +30,8 @@ from pms_to_odoo.journal import format_entry, post_entry
 from pms_to_odoo.odoo_client import OdooClient, OdooError, OdooSettings
 from pms_to_odoo.mapping import GLMapping
 from pms_to_odoo.mapping_edit import insert_rules, rule_for, suggest_account
-from pms_to_odoo.parsers import get_parser
+from pms_to_odoo.invoices.sniff import looks_like_invoice
+from pms_to_odoo.parsers import detect_pms as _detect_pms, get_parser, read_text as _read_text
 from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, process_file, resolve
 
 from .auth import SessionSigner, User, UserStore, hash_password
@@ -339,6 +340,36 @@ def invoices_page(request: Request, user: User = Depends(require_user)):
     return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None))
 
 
+def _create_invoice(path: Path, property_code: str, username: str, file_name: str) -> int:
+    """Read one invoice file and store it as a draft. Shared by the invoice page and the
+    'this is actually an invoice' button on the night-audit page."""
+    data, reader = extract_invoice_auto(path, VENDOR_TEMPLATES)
+    description = data.lines[0].description if data.lines and data.lines[0].description != "Invoice total" else ""
+    account, how = _assigner().assign(data.vendor_name, description or data.review_notes)
+    fields = dict(property_code=property_code, vendor_name=data.vendor_name, vendor_tax_id=data.vendor_tax_id or "",
+                  invoice_number=data.invoice_number, invoice_date=data.invoice_date, due_date=data.due_date or "",
+                  subtotal=str(data.dec("subtotal")), tax_amount=str(data.dec("tax_amount")), total=str(data.dec("total")),
+                  account_code=account or "", description=description or f"Invoice {data.invoice_number}".strip(),
+                  notes=f"account by {how}; {data.review_notes}".strip("; "))
+    status, why = _invoice_status(fields)
+    if why:
+        fields["notes"] = f"{why}; {fields['notes']}"
+    inv_id = state.db.add_invoice(uploaded_by=username, file_name=file_name, stored_path=str(path), reader=reader,
+                                  confidence=data.confidence, **fields)
+    state.db.update_invoice(inv_id, status=status)
+    return inv_id
+
+
+def _night_audit_report_in(path: Path) -> Optional[str]:
+    """The PMS name if this file is a night-audit report, else None. Never raises."""
+    if path.suffix.lower() not in (".pdf", ".txt", ".csv", ".eml", ".xlsx", ".xlsm"):
+        return None
+    try:
+        return _detect_pms(_read_text(path))
+    except Exception:  # noqa: BLE001 - an unreadable file is simply not a report
+        return None
+
+
 @app.post("/invoices/upload", response_class=HTMLResponse)
 async def invoice_upload(request: Request, user: User = Depends(require_user),
                          property_code: str = Form(""), file: UploadFile = File(...)):
@@ -355,20 +386,12 @@ async def invoice_upload(request: Request, user: User = Depends(require_user),
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{name}"
     target.write_bytes(await file.read())
-    data, reader = extract_invoice_auto(target, VENDOR_TEMPLATES)
-    description = data.lines[0].description if data.lines and data.lines[0].description != "Invoice total" else ""
-    account, how = _assigner().assign(data.vendor_name, description or data.review_notes)
-    fields = dict(property_code=property_code, vendor_name=data.vendor_name, vendor_tax_id=data.vendor_tax_id or "",
-                  invoice_number=data.invoice_number, invoice_date=data.invoice_date, due_date=data.due_date or "",
-                  subtotal=str(data.dec("subtotal")), tax_amount=str(data.dec("tax_amount")), total=str(data.dec("total")),
-                  account_code=account or "", description=description or f"Invoice {data.invoice_number}".strip(),
-                  notes=f"account by {how}; {data.review_notes}".strip("; "))
-    status, why = _invoice_status(fields)
-    if why:
-        fields["notes"] = f"{why}; {fields['notes']}"
-    inv_id = state.db.add_invoice(uploaded_by=user.username, file_name=name, stored_path=str(target), reader=reader,
-                                  confidence=data.confidence, **fields)
-    state.db.update_invoice(inv_id, status=status)
+    pms = _night_audit_report_in(target)
+    if pms:
+        target.unlink(missing_ok=True)
+        return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None,
+                      error=f"That is a {pms} night-audit report, not an invoice. Upload it on the Night audit page."))
+    inv_id = _create_invoice(target, property_code, user.username, name)
     return RedirectResponse(f"/invoices/{inv_id}", status_code=303)
 
 
@@ -734,3 +757,23 @@ async def import_worksheet(request: Request, user: User = Depends(require_admin)
                 skipped.append(f"{code}: {e}")
     state.reload_config()
     return render(request, "admin_import_result.html", applied=applied, skipped=skipped)
+
+
+@app.post("/runs/{run_id}/to-invoice")
+def run_to_invoice(run_id: int, user: User = Depends(require_user)):
+    """The night-audit page decided this file is an invoice; move it across."""
+    r = state.db.get_run(run_id)
+    if not r:
+        raise HTTPException(404)
+    if not user.is_admin and r["uploaded_by"] != user.username:
+        raise HTTPException(403)
+    if r["status"] == "moved_to_invoice":
+        raise HTTPException(400, "That file has already been moved to Invoices")
+    res = RunResult.from_json(r["result_json"])
+    if res.status != "looks_like_invoice":
+        raise HTTPException(400, "That upload is not waiting to be moved")
+    prop = res.property_code or (user.properties[0] if len(user.properties) == 1 else "")
+    inv_id = _create_invoice(Path(r["stored_path"]), prop, user.username, r["file_name"])
+    state.db.mark(run_id, superseded=1, status="moved_to_invoice",
+                  message=f"moved to invoice #{inv_id} by {user.username}")
+    return RedirectResponse(f"/invoices/{inv_id}", status_code=303)

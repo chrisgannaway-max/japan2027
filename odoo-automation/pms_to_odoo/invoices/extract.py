@@ -21,7 +21,6 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Literal, Optional
 
-import anthropic
 from pydantic import BaseModel, Field
 
 
@@ -94,9 +93,15 @@ def _document_block(path: Path) -> dict:
     raise ValueError(f"Unsupported invoice file type {mime} for {path.name}; use PDF, PNG or JPEG")
 
 
-def extract_invoice(path: str | Path, client: Optional[anthropic.Anthropic] = None,
+def extract_invoice(path: str | Path, client: Optional["anthropic.Anthropic"] = None,
                     model: Optional[str] = None) -> InvoiceData:
-    """Run one invoice through Claude and return validated InvoiceData."""
+    """Run one invoice through Claude and return validated InvoiceData.
+
+    The anthropic package is imported here rather than at module level: the rules reader,
+    and therefore the whole portal, must work without it installed.
+    """
+    import anthropic
+
     p = Path(path)
     client = client or anthropic.Anthropic()  # ANTHROPIC_API_KEY from the environment
     model = model or os.environ.get("INVOICE_MODEL", "claude-opus-5")
