@@ -32,12 +32,15 @@ def test_yaml_mode_admin_page_is_read_only(tmp_path, monkeypatch):
 
 def test_db_mode_seed_edit_and_use(tmp_path, monkeypatch):
     client, app_module = make_client(tmp_path, monkeypatch, "db")
-    # empty database: nobody can log in yet, so seed it from the files through the store directly
-    assert client.post("/login", data={"username": "admin", "password": "admin"}).status_code == 200
-    counts = app_module.state.store.import_from_yaml(app_module.CONFIG, app_module.USERS)
-    assert counts["properties"] >= 6 and counts["users"] >= 7
-    app_module.state.reload_config()
+    # An empty database seeds itself on the first start, otherwise nobody could ever sign in:
+    # the logins live in the database and the button that fills it is behind the login.
+    assert len(app_module.state.store.all_users()) >= 7
+    assert len(app_module.state.store.properties()) >= 6
     assert client.post("/login", data={"username": "admin", "password": "admin"}).status_code == 303
+    # seeding is once-only: a second pass must not resurrect a login the admin deleted
+    app_module.state.store.delete_user("okcon")
+    app_module.state.reload_config()
+    assert not any(u["username"] == "okcon" for u in app_module.state.store.all_users())
     r = client.get("/admin")
     assert r.status_code == 200 and ">database<" in r.text and "/admin/properties/OKCON" in r.text
     # edit a property: change the Odoo company and the mapping; the pipeline must pick it up

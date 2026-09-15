@@ -265,16 +265,23 @@ site being broken and go back to the spreadsheet.
 ## 8. Move the configuration into the database
 
 With `PORTAL_STORE=db`, the hotels, logins and mappings live in the database and are edited on
-the Settings page instead of in `config/`. Load the files in once:
+the Settings page instead of in `config/`.
+
+**A fresh database seeds itself on the first start**, from the same config files, and says so:
+
+```
+[portal] empty database: seeded 6 properties and 7 users from the config files -- change the passwords now
+```
+
+It has to: the logins live in the database, and the button that fills it is behind the login, so
+an empty database with no seeding is a locked door. Take that message seriously — until you
+change them, the example passwords are live on a public address.
+
+To re-import later, after editing the config files, use the **Import from the config files**
+button on `/admin`, or a shell if the host gives you one:
 
 ```bash
-python3 -m portal seed          # or the "Import from the config files" button on /admin
-```
-
-It prints where it landed, so you can see it went to Postgres and not to a local file:
-
-```
-imported 6 properties and 7 users into PostgreSQL postgresql://***@db.example/nightaudit
+python3 -m portal seed [--overwrite]
 ```
 
 From then on: add a property, change its report id, Odoo company, journal or analytic account,

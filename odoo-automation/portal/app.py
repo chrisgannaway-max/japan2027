@@ -58,6 +58,11 @@ templates = Jinja2Templates(directory=str(HERE / "templates"))
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 
 
+def _users_file() -> Path:
+    """config/users.yaml, or the example beside it on a fresh checkout."""
+    return USERS if USERS.exists() else USERS.with_name("users.example.yaml")
+
+
 class State:
     def __init__(self):
         self.mode = store_mode()                                   # "yaml" | "db"
@@ -76,12 +81,17 @@ class State:
     def reload_config(self) -> None:
         mail.set_stored(self.db.settings())
         if self.store is not None:
+            if not self.store.users():
+                # First start against an empty database.  Without this nobody can sign in: the
+                # logins live in the database, and the button that fills it is behind the login.
+                counts = self.store.import_from_yaml(CONFIG, _users_file())
+                print(f"[portal] empty database: seeded {counts['properties']} properties and "
+                      f"{counts['users']} users from the config files -- change the passwords now")
             self.props = self.store.properties()
             self.users = UserStore(records=self.store.users())
         else:
             self.props = load_properties(CONFIG)
-            users_path = USERS if USERS.exists() else USERS.with_name("users.example.yaml")
-            self.users = UserStore(users_path)
+            self.users = UserStore(_users_file())
 
 
 state = State()
