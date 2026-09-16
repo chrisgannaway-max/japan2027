@@ -61,6 +61,30 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 AUTOPOST_KEY = "ODOO_AUTOPOST"
 
 
+def _on(name: str, default: str) -> bool:
+    return os.environ.get(name, default).lower() in ("1", "on", "yes", "true")
+
+
+#: Hotel logins and the upload page.  Off where packs arrive by e-mail and only the office signs
+#: in.  Hidden rather than removed: a group that later wants its GMs to see their own nights
+#: turns one variable back on, which is far cheaper than building it a second time.
+HOTEL_UPLOADS = _on("HOTEL_UPLOADS", "on")
+
+#: Vendor invoices.  A separate piece of work from the night audit, so a deployment doing only
+#: night audits should not show a page nobody is meant to use.
+INVOICES = _on("INVOICES", "off")
+
+
+def _require_uploads() -> None:
+    if not HOTEL_UPLOADS:
+        raise HTTPException(404, "Uploads are off here: night-audit packs arrive by e-mail.")
+
+
+def _require_invoices() -> None:
+    if not INVOICES:
+        raise HTTPException(404, "Invoice processing is not enabled here.")
+
+
 def _after_intake() -> None:
     """Everything that should happen once a pack has been taken in, after the response has gone
     out: a hotel's pack arriving must not wait on Odoo, and Odoo being slow must not make a mail
@@ -189,6 +213,8 @@ def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx.setdefault("invoice_reader", reader_in_use())
     ctx.setdefault("store_mode", state.mode)
     ctx.setdefault("delivery", state.delivery)
+    ctx.setdefault("hotel_uploads", HOTEL_UPLOADS)
+    ctx.setdefault("invoices_on", INVOICES)
     return templates.TemplateResponse(request, name, ctx)
 
 
@@ -350,6 +376,7 @@ def logout():
 # ------------------------------------------------------------------ manager: upload
 @app.get("/upload", response_class=HTMLResponse)
 def upload_form(request: Request, user: User = Depends(require_user)):
+    _require_uploads()
     props = visible_properties(user)
     runs = state.db.recent_runs(20, None if user.is_admin else list(props))
     return render(request, "upload.html", props=props, runs=runs, results=None)
@@ -358,6 +385,7 @@ def upload_form(request: Request, user: User = Depends(require_user)):
 @app.post("/upload", response_class=HTMLResponse)
 async def upload(request: Request, background: BackgroundTasks, user: User = Depends(require_user),
                  property_code: str = Form(""), files: list[UploadFile] = File(...)):
+    _require_uploads()
     props = visible_properties(user)
     allowed = None if user.is_admin else set(props)
     if property_code and property_code not in props:
@@ -393,6 +421,10 @@ async def upload(request: Request, background: BackgroundTasks, user: User = Dep
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, day: Optional[str] = None, user: User = Depends(require_user)):
     if not user.is_admin:
+        if not HOTEL_UPLOADS:
+            return PlainTextResponse(
+                "This site is for the accounting office. Night-audit packs are sent by e-mail, "
+                "not uploaded here.", status_code=200)
         return RedirectResponse("/upload", status_code=303)
     d = date.fromisoformat(day) if day else date.today() - timedelta(days=1)
     runs = state.db.runs_for_date(d.isoformat())
@@ -598,6 +630,7 @@ def _invoice_form_ctx(request: Request, user: User, **extra):
 
 @app.get("/invoices", response_class=HTMLResponse)
 def invoices_page(request: Request, user: User = Depends(require_user)):
+    _require_invoices()
     return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None))
 
 
@@ -636,6 +669,7 @@ def _night_audit_report_in(path: Path) -> Optional[str]:
 @app.post("/invoices/upload", response_class=HTMLResponse)
 async def invoice_upload(request: Request, user: User = Depends(require_user),
                          property_code: str = Form(""), file: UploadFile = File(...)):
+    _require_invoices()
     props = visible_properties(user)
     if property_code and property_code not in props:
         raise HTTPException(403, "Property not allowed")
@@ -660,6 +694,7 @@ async def invoice_upload(request: Request, user: User = Depends(require_user),
 
 @app.get("/invoices/{inv_id}", response_class=HTMLResponse)
 def invoice_detail(request: Request, inv_id: int, user: User = Depends(require_user)):
+    _require_invoices()
     inv = state.db.get_invoice(inv_id)
     if not inv:
         raise HTTPException(404)
@@ -671,6 +706,7 @@ def invoice_detail(request: Request, inv_id: int, user: User = Depends(require_u
 
 @app.post("/invoices/{inv_id}", response_class=HTMLResponse)
 async def invoice_save(request: Request, inv_id: int, user: User = Depends(require_user)):
+    _require_invoices()
     inv = state.db.get_invoice(inv_id)
     if not inv:
         raise HTTPException(404)
@@ -705,6 +741,7 @@ async def invoice_save(request: Request, inv_id: int, user: User = Depends(requi
 
 @app.get("/invoices/export/bills.csv")
 def invoices_export(status: str = "ready", user: User = Depends(require_admin)):
+    _require_invoices()
     """Default: every ready bill not yet exported. Exporting remembers each vendor's account."""
     if status == "ready":
         rows = [r for r in state.db.list_invoices("ready", None, 1000)]
@@ -724,6 +761,7 @@ def invoices_export(status: str = "ready", user: User = Depends(require_admin)):
 
 @app.post("/invoices/{inv_id}/post")
 def invoice_post(inv_id: int, user: User = Depends(require_admin)):
+    _require_invoices()
     inv = state.db.get_invoice(inv_id)
     if not inv or inv["status"] not in ("ready", "exported"):
         raise HTTPException(400, "Bill is not ready (needs review, held or rejected)")
@@ -1027,6 +1065,7 @@ async def import_worksheet(request: Request, user: User = Depends(require_admin)
 
 @app.post("/runs/{run_id}/to-invoice")
 def run_to_invoice(run_id: int, user: User = Depends(require_user)):
+    _require_invoices()
     """The night-audit page decided this file is an invoice; move it across."""
     r = state.db.get_run(run_id)
     if not r:

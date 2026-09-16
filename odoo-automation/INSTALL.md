@@ -66,7 +66,7 @@ file never contains a password in the clear.
 
 ---
 
-## 2. Understand the two switches
+## 2. Understand the switches
 
 Everything in this document is the same program with different settings. Two variables decide
 its shape, and both default to the simplest thing:
@@ -76,7 +76,20 @@ its shape, and both default to the simplest thing:
 | `PORTAL_STORE` | `yaml` — hotels, logins and mappings come from `config/` | the client wants to add a property or reset a login themselves, in the browser |
 | `DELIVERY_MODE` | `download` — the office downloads a CSV and imports it | Odoo's API is available and you want the portal to post directly |
 
-Leave both alone to start. Section 8 turns on the first; section 10 turns on the second.
+Two more decide what the site *is*:
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `HOTEL_UPLOADS` | `on` — hotels sign in and upload | packs arrive by e-mail instead; `off` closes the upload page and hides its link |
+| `INVOICES` | `off` | the client wants vendor bills read as well as night audits |
+
+`HOTEL_UPLOADS=off` hides the hotel side rather than removing it. A group that later wants its
+GMs to see their own nights turns one variable back on, which is far cheaper than building it a
+second time. A manager who signs in while it is off gets a plain line telling them packs are sent
+by e-mail, rather than a redirect to a page that is not there.
+
+Leave the first two alone to start. Section 8 turns on the configuration store; section 10 turns
+on posting to Odoo.
 
 ---
 
@@ -412,6 +425,11 @@ checking out the previous commit and restarting; the database stays readable by 
 | `PORTAL_SECURE_COOKIES` | `auto` | `always` behind HTTPS |
 | `PORTAL_MFA_ROLES` | empty | e.g. `admin` to require two-step sign-in for admins |
 | `DELIVERY_MODE` | `download` | `odoo` to post from the dashboard |
+| `HOTEL_UPLOADS` | `on` | `off` where packs arrive by e-mail and only the office signs in: the upload page closes and its link goes |
+| `INVOICES` | `off` | `on` to enable the vendor-invoice pages |
+| `SCHEDULER` | `off` | `on` to drain the posting queue and send the morning list on a timer |
+| `SCHEDULER_INTERVAL` | `600` | seconds between passes |
+| `REPORT_TO` | unset | where the morning list and the held-night notices go; also settable on the E-mail page |
 | `DATABASE_URL` | — | PostgreSQL instead of SQLite |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | — | all three: Supabase Storage instead of the disk |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` / `SMTP_REPLY_TO` | — | outgoing mail; also settable on `/admin` |

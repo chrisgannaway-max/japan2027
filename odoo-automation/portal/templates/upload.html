@@ -24,7 +24,7 @@
       <tr><td>{{ r.file_name }}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
           <td>{{ pill(r.status) }}</td>
           <td class="msg">{{ r.message }}{% if run_id %} <a href="/runs/{{ run_id }}">view</a>{% endif %}
-            {% if r.status == 'looks_like_invoice' and run_id %}
+            {% if r.status == 'looks_like_invoice' and run_id and invoices_on %}
               <form method="post" action="/runs/{{ run_id }}/to-invoice" style="margin-top:6px">
                 <button class="btn" type="submit">Send it to Invoices</button></form>
             {% endif %}</td></tr>

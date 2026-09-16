@@ -64,6 +64,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("PORTAL_CONFIG", str(cfg / "properties.example.yaml"))
     monkeypatch.setenv("PORTAL_USERS", str(cfg / "users.example.yaml"))
     monkeypatch.setenv("PORTAL_SECRET", "test-secret")
+    monkeypatch.setenv("INVOICES", "on")        # this suite is about the invoice side
     monkeypatch.delenv("ODOO_URL", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("INVOICE_READER", raising=False)

@@ -29,8 +29,8 @@ pre{background:var(--code);padding:12px;border-radius:4px;overflow-x:auto;font-s
   <b>Night Audit to Odoo</b>
   {% if user %}
     {% if user.is_admin %}<a href="/">Dashboard</a>{% endif %}
-    <a href="/upload">Night audit</a>
-    <a href="/invoices">Invoices</a>
+    {% if hotel_uploads %}<a href="/upload">Night audit</a>{% endif %}
+    {% if invoices_on %}<a href="/invoices">Invoices</a>{% endif %}
     {% if user.is_admin %}<a href="/missing">Who reported</a><a href="/admin/accounts">Accounts</a><a href="/admin">Settings</a>{% endif %}
     <span class="sp"></span>
     <a href="/account">{{ user.username }}</a> <small>({{ user.role }})</small> <a href="/logout">Log out</a>

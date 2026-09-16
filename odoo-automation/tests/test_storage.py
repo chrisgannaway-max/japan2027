@@ -97,6 +97,7 @@ def client(tmp_path, monkeypatch, fake):
     monkeypatch.setenv("PORTAL_CONFIG", str(CONFIG_DIR / "properties.example.yaml"))
     monkeypatch.setenv("PORTAL_USERS", str(CONFIG_DIR / "users.example.yaml"))
     monkeypatch.setenv("PORTAL_SECRET", "test-secret")
+    monkeypatch.setenv("INVOICES", "on")        # this suite is about the invoice side
     monkeypatch.setenv("SUPABASE_URL", fake.url)
     monkeypatch.setenv("SUPABASE_SERVICE_KEY", TOKEN)
     monkeypatch.setenv("SUPABASE_BUCKET", "night-audit")
