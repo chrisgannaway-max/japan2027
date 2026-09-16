@@ -58,6 +58,9 @@ templates = Jinja2Templates(directory=str(HERE / "templates"))
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 
 
+AUTOPOST_KEY = "ODOO_AUTOPOST"
+
+
 def _users_file() -> Path:
     """config/users.yaml, or the example beside it on a fresh checkout."""
     return USERS if USERS.exists() else USERS.with_name("users.example.yaml")
@@ -75,11 +78,23 @@ class State:
         self.throttle = LoginThrottle()
         self.odoo_enabled = bool(os.environ.get("ODOO_URL") and os.environ.get("ODOO_API_KEY"))
         self.reload_config()
+        if self.autopost:
+            print("[portal] entries will be POSTED in Odoo on arrival, not left as drafts")
         print(f"[portal] config from {self.mode}; database: {self.db.describe()}; "
               f"files: {self.storage.describe()}")
 
+    @property
+    def autopost_locked(self) -> bool:
+        """Pinned on the host, so it cannot be flipped from the browser."""
+        return bool(os.environ.get(AUTOPOST_KEY))
+
     def reload_config(self) -> None:
-        mail.set_stored(self.db.settings())
+        stored = self.db.settings()
+        mail.set_stored(stored)
+        # Draft unless somebody has deliberately said otherwise.  A draft entry can be read and
+        # deleted; a posted one needs a reversing entry, which is permanent in the ledger.
+        self.autopost = (os.environ.get(AUTOPOST_KEY) or stored.get(AUTOPOST_KEY) or "no").lower() \
+            in ("1", "yes", "true", "on")
         if self.store is not None:
             if not self.store.users():
                 # First start against an empty database.  Without this nobody can sign in: the
@@ -408,7 +423,7 @@ def post_to_odoo(run_id: int, user: User = Depends(require_admin), post_now: str
     res = RunResult.from_json(r["result_json"])
     try:
         client = OdooClient.connect(OdooSettings.from_env())
-        result = post_entry(res.entry, client, post=(post_now == "yes"))
+        result = post_entry(res.entry, client, post=(post_now == "yes") or state.autopost)
     except OdooError as e:
         raise HTTPException(502, f"Odoo error: {e}") from e
     state.db.mark(run_id, posted_at=datetime.now().isoformat(timespec="seconds"), odoo_move_id=result.move_id)
@@ -711,7 +726,7 @@ def post_day(day: str, post_now: str = Form("no"), user: User = Depends(require_
             continue
         res = RunResult.from_json(r["result_json"])
         try:
-            result = post_entry(res.entry, client, post=(post_now == "yes"))
+            result = post_entry(res.entry, client, post=(post_now == "yes") or state.autopost)
         except OdooError as e:
             raise HTTPException(502, f"Odoo error on {res.ref}: {e}") from e
         state.db.mark(r["id"], posted_at=datetime.now().isoformat(timespec="seconds"), odoo_move_id=result.move_id)
@@ -728,7 +743,8 @@ def require_db_store():
 @app.get("/admin", response_class=HTMLResponse)
 def admin_home(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = ""):
     ctx = dict(msg=msg, err=err, config_path=str(CONFIG), users_path=str(USERS),
-               accounts_count=state.db.accounts_info()["count"])
+               accounts_count=state.db.accounts_info()["count"],
+               autopost=state.autopost, autopost_locked=state.autopost_locked)
     if state.store is not None:
         ctx["properties"] = [state.store.get_property(c) | {"enabled": state.store.get_property(c)["enabled"]} for c in
                              state.store.properties(include_disabled=True)]
@@ -1067,6 +1083,16 @@ def email_page(request: Request, user: User = Depends(require_admin), msg: str =
                      "locked": bool(os.environ.get(key))})
     return render(request, "admin_email.html", rows=rows, configured=mail.configured(),
                   msg=msg, err=err, test_to=user.email or "")
+
+
+@app.post("/admin/odoo-autopost")
+def set_autopost(user: User = Depends(require_admin), autopost: str = Form("no")):
+    if state.autopost_locked:
+        return RedirectResponse("/admin?err=Pinned+on+the+host", status_code=303)
+    state.db.save_settings({AUTOPOST_KEY: "yes" if autopost == "yes" else ""}, user.username)
+    state.reload_config()
+    return RedirectResponse("/admin?msg=" + ("Entries+will+be+posted+on+arrival" if state.autopost
+                                             else "Entries+will+be+left+as+drafts"), status_code=303)
 
 
 @app.post("/admin/email")

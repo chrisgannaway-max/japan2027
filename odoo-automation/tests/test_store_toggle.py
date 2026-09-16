@@ -80,3 +80,29 @@ def test_delivery_mode_odoo_shows_send_button_when_configured(tmp_path, monkeypa
     app_module.state.odoo_enabled = True
     r = client.get("/?day=2025-11-10")
     assert "Send to Odoo" in r.text
+
+
+def test_odoo_autopost_defaults_to_draft_and_toggles(tmp_path, monkeypatch):
+    client, app_module = make_client(tmp_path, monkeypatch, "db")
+    assert app_module.state.autopost is False               # drafts unless somebody says otherwise
+    assert client.post("/login", data={"username": "admin", "password": "admin"}).status_code == 303
+    r = client.get("/admin")
+    assert "drafts for review" in r.text
+
+    assert client.post("/admin/odoo-autopost", data={"autopost": "yes"}).status_code == 303
+    assert app_module.state.autopost is True
+    assert "posted on arrival" in client.get("/admin").text
+
+    assert client.post("/admin/odoo-autopost", data={}).status_code == 303   # unchecked box
+    assert app_module.state.autopost is False
+
+
+def test_autopost_pinned_on_the_host_cannot_be_changed_in_the_browser(tmp_path, monkeypatch):
+    monkeypatch.setenv("ODOO_AUTOPOST", "yes")
+    client, app_module = make_client(tmp_path, monkeypatch, "db")
+    assert app_module.state.autopost is True and app_module.state.autopost_locked is True
+    client.post("/login", data={"username": "admin", "password": "admin"})
+    assert "cannot be changed here" in client.get("/admin").text
+    r = client.post("/admin/odoo-autopost", data={})
+    assert r.status_code == 303 and "Pinned" in r.headers["location"]
+    assert app_module.state.autopost is True                # the environment still wins

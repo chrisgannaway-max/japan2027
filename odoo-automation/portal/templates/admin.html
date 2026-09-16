@@ -12,6 +12,18 @@
   {% endif %}
 </div>
 <div class="card">
+  <h2>Entries in Odoo: <span class="pill {{ 'warn' if autopost else 'ok' }}">{{ 'posted on arrival' if autopost else 'drafts for review' }}</span></h2>
+  <p class="small">A draft can be read and deleted. A posted entry needs a reversing entry, which stays in the ledger for good. Start with drafts; turn this on once the numbers have been right for a while.</p>
+  {% if autopost_locked %}
+    <p class="small">Pinned on the host with <code>ODOO_AUTOPOST</code>, so it cannot be changed here.</p>
+  {% else %}
+    <form method="post" action="/admin/odoo-autopost" class="row">
+      <label><input type="checkbox" name="autopost" value="yes" {% if autopost %}checked{% endif %}> post entries automatically instead of leaving drafts</label>
+      <button class="btn secondary" type="submit">Save</button>
+    </form>
+  {% endif %}
+</div>
+<div class="card">
   <h2>Account mapping</h2>
   <p class="small"><a href="/admin/email">E-mail setup</a> &middot; needed for password resets and daily notices</p>
   <p class="small">Chart of accounts: {% if accounts_count %}{{ accounts_count }} loaded{% else %}<b>not loaded</b>{% endif %} &middot; <a href="/admin/accounts">manage</a></p>

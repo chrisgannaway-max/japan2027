@@ -416,6 +416,7 @@ checking out the previous commit and restarting; the database stays readable by 
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | — | all three: Supabase Storage instead of the disk |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` / `SMTP_REPLY_TO` | — | outgoing mail; also settable on `/admin` |
 | `ODOO_URL` / `ODOO_API_KEY` / `ODOO_DB` / `ODOO_TRANSPORT` / `ODOO_USER` | — | the Odoo connection |
+| `ODOO_AUTOPOST` | `no` | `yes` posts entries in Odoo on arrival instead of leaving drafts; also switchable on `/admin` unless pinned here |
 | `INTAKE_TOKEN` | unset | shared secret for the inbound-mail webhook; **unset means the route is off** |
 | `INVOICE_READER` | rules | `claude` to use the AI invoice reader |
 | `ANTHROPIC_API_KEY` | — | only for `INVOICE_READER=claude`; night audit never uses it |
