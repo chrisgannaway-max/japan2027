@@ -416,6 +416,7 @@ checking out the previous commit and restarting; the database stays readable by 
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | — | all three: Supabase Storage instead of the disk |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` / `SMTP_REPLY_TO` | — | outgoing mail; also settable on `/admin` |
 | `ODOO_URL` / `ODOO_API_KEY` / `ODOO_DB` / `ODOO_TRANSPORT` / `ODOO_USER` | — | the Odoo connection |
+| `INTAKE_TOKEN` | unset | shared secret for the inbound-mail webhook; **unset means the route is off** |
 | `INVOICE_READER` | rules | `claude` to use the AI invoice reader |
 | `ANTHROPIC_API_KEY` | — | only for `INVOICE_READER=claude`; night audit never uses it |
 
@@ -424,6 +425,36 @@ Secrets — `PORTAL_SECRET`, `SMTP_PASSWORD`, `ODOO_API_KEY`, `SUPABASE_SERVICE_
 and never in the repository.
 
 ---
+
+## Night-audit packs arriving by e-mail
+
+A hotel's PMS, or its GM, can send the pack to an address instead of anyone signing in. What
+arrives runs through the same pipeline an upload does.
+
+**Testing, with no domain and no accounts:** drop `.eml` files (or bare reports) into a folder
+and read them with `FolderSource`. Re-scanning is safe -- de-duplication decides what is new --
+so the same folder can be replayed as often as you like.
+
+**In production:** an inbound mail provider POSTs each message to `/intake/mail`. Postmark is the
+easy start because it gives you an address on its own domain, `<guid>@inbound.postmarkapp.com`,
+so nothing needs DNS until the hotels have a domain to point at it. Then:
+
+1. Postmark -> Servers -> your server -> **Inbound**. Copy the inbound address.
+2. Set the **Inbound Webhook URL** to `https://<your site>/intake/mail?token=<INTAKE_TOKEN>`.
+3. Set `INTAKE_TOKEN` on the host to a long random string. The provider does not sign its
+   requests, so that secret is the only thing between the route and whoever guesses the URL.
+   Leave it unset and the route returns 404, which is the right default for an endpoint that
+   files attachments.
+4. Have one hotel send, or forward, a pack to the inbound address.
+
+Moving to the hotels' own domain later changes the address and adds MX records. The webhook,
+the token and everything downstream stay as they are.
+
+De-duplication is three layers, because each alone has a hole: the `Message-Id` catches a plain
+re-delivery but forwarding mints a new one; the SHA-256 of the attachment is the real test, since
+the same bytes are the same report however many people forwarded it; and the `PMS-CODE-DATE`
+reference means a genuine re-run with corrections supersedes the earlier one instead of posting
+twice.
 
 ## Still needed from the client
 

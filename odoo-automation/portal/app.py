@@ -38,7 +38,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
                     new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
-from . import storage
+from . import intake, storage
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -468,6 +468,39 @@ def export_run(run_id: int, fmt: str = "odoo", user: User = Depends(require_admi
     state.db.mark(run_id, exported_at=datetime.now().isoformat(timespec="seconds"))
     return Response(body, media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{res.ref}-{fmt}.csv"'})
+
+
+# ------------------------------------------------------------------ mail arriving
+INTAKE_TOKEN = os.environ.get("INTAKE_TOKEN", "")
+
+
+@app.post("/intake/mail")
+async def intake_mail(request: Request):
+    """An inbound mail provider POSTs one message here.
+
+    The provider does not sign its requests, so the shared secret in INTAKE_TOKEN is what
+    stands between this and anyone who guesses the URL.  Without it set, the route is off --
+    an open endpoint that files attachments is not something to leave running by accident.
+    """
+    if not INTAKE_TOKEN:
+        raise HTTPException(404)
+    given = request.headers.get("X-Intake-Token") or request.query_params.get("token") or ""
+    if not secrets.compare_digest(given, INTAKE_TOKEN):
+        raise HTTPException(403, "bad or missing intake token")
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(400, "expected JSON") from None
+    msg = intake.message_from_postmark(payload)
+    res = intake.ingest(msg, db=state.db, storage=state.storage, props=state.props)
+    print(f"[intake] {msg.sender or '?'} -> {len(res.created)} run(s), "
+          f"{len(res.duplicates)} duplicate(s), {len(res.ignored)} ignored")
+    # Always 200 once the message is ours: a report we could not parse is recorded as a run to
+    # look at, not an error for the provider to retry until it gives up.
+    return {"accepted": True,
+            "runs": [{"id": rid, "property": r.property_code, "status": r.status}
+                     for rid, r in res.created],
+            "duplicates": res.duplicates, "ignored": res.ignored}
 
 
 @app.get("/health", response_class=PlainTextResponse)

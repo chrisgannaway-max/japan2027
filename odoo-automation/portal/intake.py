@@ -94,6 +94,40 @@ def message_from_bytes(raw: bytes, fallback_id: str = "") -> Message:
     return msg
 
 
+def message_from_postmark(payload: dict) -> Message:
+    """The JSON an inbound mail provider POSTs for one message.
+
+    Written against Postmark's shape because it needs no domain to start with -- mail to
+    `<guid>@inbound.postmarkapp.com` arrives here, and moving to the hotels' own domain later
+    changes the address, not this code.  Anything unexpected in the payload is ignored rather
+    than refused: a message we half understand is still evidence worth keeping.
+    """
+    import base64
+    from_full = payload.get("FromFull") or {}
+    raw_date = payload.get("Date") or ""
+    received = None
+    if raw_date:
+        try:
+            received = parsedate_to_datetime(raw_date)
+        except (TypeError, ValueError):
+            received = None
+    msg = Message(
+        message_id=(payload.get("MessageID") or "").strip("<> ") or _digest(repr(payload).encode()),
+        sender=from_full.get("Email") or payload.get("From", ""),
+        recipient=payload.get("OriginalRecipient") or payload.get("To", ""),
+        subject=payload.get("Subject", ""), received_at=received)
+    for att in payload.get("Attachments") or []:
+        name, content = att.get("Name"), att.get("Content")
+        if not name or not content:
+            continue
+        try:
+            data = base64.b64decode(content)
+        except Exception:            # noqa: BLE001 - a corrupt attachment is not a reason to
+            continue                 # drop the whole message; the rest may be fine
+        msg.attachments.append(Attachment(_clean(name), data))
+    return msg
+
+
 def message_from_file(path: Path) -> Message:
     """A bare report dropped in the folder, with no envelope around it.  Treated as a message
     carrying one attachment, so replaying old files uses exactly the same path as real mail."""
