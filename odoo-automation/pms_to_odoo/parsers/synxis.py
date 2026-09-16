@@ -93,10 +93,12 @@ class WyndhamSynxisParser(BaseParser):
         if "transactions" in files:
             self._parse_transactions(_text(files["transactions"]), files["transactions"].name, report)
         else:
+            report.awaiting_companion = "Transaction Totals Summary"
             report.warnings.append("Transaction Totals Summary not found next to this file: no revenue/payment lines.")
         if "ledgers" in files:
             self._parse_ledgers(_text(files["ledgers"]), files["ledgers"].name, report)
         else:
+            report.awaiting_companion = "Hotel Ledger Comparison Report"
             report.warnings.append("Hotel Ledger Comparison Report not found next to this file: "
                                    "ledger movements missing, the entry will not balance.")
         gt, lg = report.stats.get("Transactions Grand Total"), report.stats.get("Ledgers Grand Total Difference")

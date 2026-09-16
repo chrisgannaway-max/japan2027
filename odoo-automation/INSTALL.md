@@ -521,6 +521,32 @@ as loudly as the broken ones gets skimmed. When everything is fine it says so an
 
 Read the same thing any time at `/daily`, or `python3 -m portal report`.
 
+### Told at once when a night is held
+
+A pack that lands at 3am and waits until the 6am list has lost three hours of a window only a
+few hours wide. So a night held for account codes is reported as soon as it arrives, to the same
+`REPORT_TO` address, with the lines that need codes and a link straight to the screen that takes
+them.
+
+One message covering everything waiting, not one per hotel -- it is the same visit to the same
+screen either way, and a separate mail per property is how a useful notice becomes one people
+filter. Each night is mentioned once; a night still unmapped a week later is the morning list's
+job, not a reminder every time another pack arrives. If the send fails, nothing is marked, so the
+next pack tries again.
+
+### Two-part reports (Wyndham)
+
+SynXis sends the revenue and the ledger movements as separate reports, and on a schedule they
+arrive as separate e-mails. Neither balances alone, so the first to land is recorded as *waiting
+for the other half* -- not as "does not balance", which would send somebody hunting for an error
+that is really a file that has not arrived. When the second half lands, the first is brought
+alongside it and the pair is read together; the half that was waiting is superseded, so the
+night appears once.
+
+Whichever half arrives second does the joining, because which one that is depends on the mail
+server rather than on us. A half still on its own appears on the morning list under *Only half
+the report arrived*.
+
 ### Turning the loop on
 
 ```

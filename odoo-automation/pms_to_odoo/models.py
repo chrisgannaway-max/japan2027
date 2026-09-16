@@ -52,6 +52,9 @@ class DailyReport:
     warnings: list[str] = field(default_factory=list)
     recognised: bool = True       # False when the file is not the report this parser books
     companions: list[str] = field(default_factory=list)   # other files merged into this report
+    #: set when this is one half of a report that needs both halves (SynXis sends the revenue
+    #: and the ledger movements as separate files).  Names the half that is missing.
+    awaiting_companion: str = ""
 
     def total(self, section: str) -> Decimal:
         return sum((l.amount for l in self.lines if l.section == section), Decimal("0"))

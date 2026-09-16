@@ -28,7 +28,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult
 #: `due_by: "05:30"` in its configuration).
 DEFAULT_DUE_BY = time(6, 0)
 
-TROUBLE = ("missing", "needs_codes", "unbalanced", "stuck", "problem")
+TROUBLE = ("missing", "half", "needs_codes", "unbalanced", "stuck", "problem")
 
 
 @dataclass
@@ -64,6 +64,7 @@ class Report:
 
 HEADINGS = {
     "missing": "Nothing has arrived",
+    "half": "Only half the report arrived",
     "needs_codes": "Waiting for account codes",
     "unbalanced": "Does not balance",
     "stuck": "Odoo would not take it",
@@ -109,6 +110,8 @@ def build(db, props: dict, day: date, now: Optional[datetime] = None,
             report.rows.append(Row(code, name, "stuck", (r["post_error"] or "")[:200], run_id))
         elif status == "ok":
             report.rows.append(Row(code, name, "ready", "", run_id))
+        elif status == "awaiting_companion":
+            report.rows.append(Row(code, name, "half", r["message"] or "", run_id))
         elif status == "unmapped":
             res = RunResult.from_json(r["result_json"])
             labels = ", ".join(l["label"] for l in res.unmapped[:3]) if res.unmapped else ""
@@ -151,3 +154,44 @@ def as_text(report: Report, base_url: str = "") -> str:
     if not_due:
         out += ["", f"Not due yet: {', '.join(r.code for r in not_due)}"]
     return "\n".join(out)
+
+
+# ------------------------------------------------------------------ the immediate nudge
+def nudge_unmapped(db, props: dict, send=None, base_url: str = "") -> tuple[bool, str]:
+    """Tell the bookkeeper straight away when a night is held for account codes.
+
+    The morning list would catch it too, but a pack that lands at 3am and waits until 6am for
+    somebody to be told has lost three hours of a window that is only a few hours wide.  One
+    message covering everything that is waiting, not one per hotel: the job is the same visit to
+    the same screen either way, and a separate mail per property is how a useful notice becomes
+    one people filter.
+
+    Each night is nudged about once.  A night that stays unmapped for a week is the morning
+    list's problem, not something to be reminded of every time another pack arrives.
+    """
+    from . import mail
+    send = send or mail.send_reporting
+    waiting = db.runs_not_yet_notified(("unmapped",))
+    if not waiting:
+        return False, "nothing waiting"
+    to = mail.setting("REPORT_TO")
+    if not to:
+        return False, "no REPORT_TO address configured"
+
+    lines = [f"{len(waiting)} night(s) need account codes before they can go to Odoo.", ""]
+    for r in waiting:
+        name = props.get(r["property_code"], {}).get("name", r["property_code"])
+        res = RunResult.from_json(r["result_json"])
+        labels = ", ".join(l["label"] for l in res.unmapped[:5])
+        more = f" and {len(res.unmapped) - 5} more" if len(res.unmapped) > 5 else ""
+        lines.append(f"  {r['property_code']} - {name}  ({r['business_date']})")
+        if labels:
+            lines.append(f"      {labels}{more}")
+        if base_url:
+            lines.append(f"      {base_url}/admin/mapping/{r['id']}")
+    subject = (f"Night audit: {waiting[0]['property_code']} needs account codes" if len(waiting) == 1
+               else f"Night audit: {len(waiting)} nights need account codes")
+    sent, why = send(to, subject, "\n".join(lines))
+    if sent:
+        db.mark_notified([r["id"] for r in waiting])
+    return sent, why

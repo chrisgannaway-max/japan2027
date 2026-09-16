@@ -23,6 +23,7 @@ STATUS_LABELS = {
     "ok": "Balanced, ready to post",
     "unmapped": "Needs mapping",
     "unbalanced": "Does not balance",
+    "awaiting_companion": "Waiting for the other half of the report",
     "unrecognised": "Not a report we book",
     "looks_like_invoice": "Looks like an invoice",
     "moved_to_invoice": "Moved to invoices",
@@ -226,9 +227,15 @@ def process_file(file: Path, props: dict[str, dict], property_code: Optional[str
                 res.status = "unrecognised"
                 res.message = f"No report lines recognised by the {report.pms} parser; is this the right report for {code}?"
             return res
+        res.ref = f"{report.pms}-{report.property_code}-{report.business_date.isoformat()}"
+        if report.awaiting_companion:
+            # Half a report is not a broken report.  Saying "does not balance" here would send
+            # somebody looking for an error that is really just a file that has not arrived yet.
+            res.status = "awaiting_companion"
+            res.message = f"{report.awaiting_companion} has not arrived yet for this night."
+            return res
         mapping = GLMapping.load(resolve(prop, "gl_mapping"))
         res.coverage = mapping.coverage_report(report)
-        res.ref = f"{report.pms}-{report.property_code}-{report.business_date.isoformat()}"
         try:
             res.entry = mapping.build_entry(report)
         except MappingError as e:

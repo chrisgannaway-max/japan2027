@@ -61,10 +61,16 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 AUTOPOST_KEY = "ODOO_AUTOPOST"
 
 
-def _drain_queue() -> None:
-    """Send whatever is waiting.  Runs after the response has gone out, so a hotel's pack
-    arriving never waits on Odoo, and Odoo being slow never makes a mail provider decide the
-    delivery failed and send it again."""
+def _after_intake() -> None:
+    """Everything that should happen once a pack has been taken in, after the response has gone
+    out: a hotel's pack arriving must not wait on Odoo, and Odoo being slow must not make a mail
+    provider decide the delivery failed and send it again."""
+    try:
+        sent, why = daily.nudge_unmapped(state.db, state.props, base_url=mail.base_url())
+        if sent:
+            print("[nudge] told the office about nights needing account codes")
+    except Exception as e:                       # noqa: BLE001
+        print(f"[nudge] failed: {e}")
     if state.delivery != "odoo" or not state.odoo_enabled:
         return                                   # download mode: the queue simply waits
     try:
@@ -378,7 +384,7 @@ async def upload(request: Request, background: BackgroundTasks, user: User = Dep
                                   pms=res.pms, ref=res.ref, status=res.status, message=res.message,
                                   file_name=path.name, stored_path=locator, result_json=res.to_json())
         results.append((run_id, res))
-    background.add_task(_drain_queue)
+    background.add_task(_after_intake)
     runs = state.db.recent_runs(20, None if user.is_admin else list(props))
     return render(request, "upload.html", props=props, runs=runs, results=results)
 
@@ -526,7 +532,7 @@ async def intake_mail(request: Request, background: BackgroundTasks):
           f"{len(res.duplicates)} duplicate(s), {len(res.ignored)} ignored")
     # Always 200 once the message is ours: a report we could not parse is recorded as a run to
     # look at, not an error for the provider to retry until it gives up.
-    background.add_task(_drain_queue)
+    background.add_task(_after_intake)
     return {"accepted": True,
             "runs": [{"id": rid, "property": r.property_code, "status": r.status}
                      for rid, r in res.created],

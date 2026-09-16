@@ -110,7 +110,8 @@ class Database:
         self.path = getattr(self.pool, "path", None)
         with self._conn() as c:
             c.executescript(SCHEMA)
-            for col, decl in (("post_attempts", "INTEGER DEFAULT 0"), ("post_error", "TEXT")):
+            for col, decl in (("post_attempts", "INTEGER DEFAULT 0"), ("post_error", "TEXT"),
+                              ("notified_at", "TEXT")):
                 c.add_column_if_missing("runs", col, decl)   # databases made before the queue
 
     def _conn(self):
@@ -153,6 +154,31 @@ class Database:
                 "file_name, stored_path, result_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (datetime.now().isoformat(timespec="seconds"), uploaded_by, property_code, business_date, pms, ref,
                  status, message, file_name, stored_path, result_json))
+
+    def runs_not_yet_notified(self, statuses: tuple = ("unmapped",)) -> list[dict]:
+        """Live runs in one of these states that nobody has been told about yet."""
+        marks = ",".join("?" * len(statuses))
+        with self._conn() as c:
+            return c.execute(f"SELECT * FROM runs WHERE status IN ({marks}) AND superseded=0 "
+                             "AND notified_at IS NULL ORDER BY id", statuses).fetchall()
+
+    def mark_notified(self, run_ids: list[int]) -> None:
+        if not run_ids:
+            return
+        now = datetime.now().isoformat(timespec="seconds")
+        with self._conn() as c:
+            for rid in run_ids:
+                c.execute("UPDATE runs SET notified_at=? WHERE id=?", (now, rid))
+
+    def awaiting_companion(self, property_code: str, business_date: Optional[str]) -> Optional[dict]:
+        """The live run for this night that is still waiting for the other half of its report."""
+        if not (property_code and business_date):
+            return None
+        with self._conn() as c:
+            r = c.execute("SELECT * FROM runs WHERE property_code=? AND business_date=? "
+                          "AND status='awaiting_companion' AND superseded=0 ORDER BY id DESC LIMIT 1",
+                          (property_code, business_date)).fetchone()
+        return dict(r) if r else None
 
     def get_run(self, run_id: int) -> Optional[dict]:
         with self._conn() as c:

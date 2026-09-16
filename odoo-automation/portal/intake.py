@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import email
 import hashlib
+import shutil
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -215,6 +216,7 @@ def ingest(msg: Message, *, db, storage, props, property_code: str = "",
                              file_name=att.name, stored_path=locator, run_id=None)
             continue
         out = process_file(path, props, property_code or None, allowed)
+        out = _pair_with_earlier_half(out, path, db, storage, props, property_code, allowed)
         consumed.update(Path(c) for c in out.companions)
         run_id = db.add_run(
             uploaded_by=f"email:{msg.sender or 'unknown'}", property_code=out.property_code,
@@ -232,3 +234,29 @@ def ingest_source(source, *, db, storage, props) -> list[IntakeResult]:
     """Drain a source.  Safe to run again: de-duplication decides what is new, so a re-scan of
     the same folder, or a webhook that delivers twice, changes nothing."""
     return [ingest(m, db=db, storage=storage, props=props) for m in source.messages()]
+
+
+def _pair_with_earlier_half(out, path: Path, db, storage, props, property_code, allowed):
+    """SynXis sends the revenue and the ledger halves as two reports, and on a schedule they
+    arrive as two e-mails.  Neither half balances alone, so the first one to land waits; when
+    the second arrives, the first is brought alongside it and the pair is read together.
+
+    Symmetrical on purpose -- whichever half is second does the joining, because which one that
+    is depends on the mail server, not on us.
+    """
+    from pms_to_odoo.pipeline import process_file
+    if out.status != "awaiting_companion":
+        return out
+    earlier = db.awaiting_companion(out.property_code,
+                                    out.business_date.isoformat() if out.business_date else None)
+    if not earlier:
+        return out                      # first half in: it waits, and says so on the daily list
+    try:
+        beside = path.parent / Path(earlier["file_name"]).name
+        if not beside.exists():
+            shutil.copy2(storage.local_path(earlier["stored_path"]), beside)
+    except (OSError, FileNotFoundError):
+        return out                      # the earlier file has gone; keep waiting rather than guess
+    merged = process_file(path, props, property_code or None, allowed)
+    # The merged run carries the same reference, so add_run supersedes the half that was waiting.
+    return merged if merged.status != "awaiting_companion" else out

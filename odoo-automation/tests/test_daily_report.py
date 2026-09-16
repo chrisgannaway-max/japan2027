@@ -152,3 +152,61 @@ def test_scheduler_is_off_unless_asked_for(db, props, monkeypatch):
     monkeypatch.setenv("SCHEDULER_INTERVAL", "3600")
     t = scheduler.start(FakeState(db, props))
     assert t is not None and t.daemon                      # never keeps the process alive
+
+
+# ------------------------------------------------------------------ the immediate nudge
+def held_night(db, code="TXI47", day="2025-11-10", labels=("Pet Fee", "Resort Fee")):
+    import json
+    res = {"status": "unmapped", "property_code": code, "pms": "CHOICEADV",
+           "message": "lines have no account",
+           "unmapped": [{"label": l, "code": "", "section": "revenue", "amount": "10.00"} for l in labels]}
+    return db.add_run(uploaded_by="email:audit@example", property_code=code, business_date=day,
+                      pms="CHOICEADV", ref=f"CHOICEADV-{code}-{day}", status="unmapped",
+                      message="lines have no account", file_name="x.pdf", stored_path="x",
+                      result_json=json.dumps(res))
+
+
+def test_a_held_night_is_reported_at_once_and_only_once(db, props, monkeypatch):
+    monkeypatch.setenv("REPORT_TO", "books@champion.example")
+    sent = []
+    send = lambda to, s, b: (sent.append((to, s, b)), (True, ""))[1]
+
+    held_night(db)
+    ok, why = daily.nudge_unmapped(db, props, send=send, base_url="https://x.example")
+    assert ok and len(sent) == 1
+    to, subject, body = sent[0]
+    assert to == "books@champion.example" and "TXI47 needs account codes" in subject
+    assert "Pet Fee, Resort Fee" in body and "https://x.example/admin/mapping/1" in body
+
+    # another pack arriving must not remind anybody about the same night again
+    ok2, why2 = daily.nudge_unmapped(db, props, send=send)
+    assert not ok2 and why2 == "nothing waiting" and len(sent) == 1
+
+
+def test_several_held_nights_are_one_message_not_one_each(db, props, monkeypatch):
+    monkeypatch.setenv("REPORT_TO", "books@champion.example")
+    sent = []
+    for code in ("TXI47", "OKCMD", "OKCON"):
+        held_night(db, code=code)
+    daily.nudge_unmapped(db, props, send=lambda to, s, b: (sent.append((s, b)), (True, ""))[1])
+    assert len(sent) == 1
+    subject, body = sent[0]
+    assert "3 nights need account codes" in subject
+    assert all(c in body for c in ("TXI47", "OKCMD", "OKCON"))
+
+
+def test_a_failed_send_leaves_the_night_to_be_told_about_again(db, props, monkeypatch):
+    monkeypatch.setenv("REPORT_TO", "books@champion.example")
+    held_night(db)
+    ok, why = daily.nudge_unmapped(db, props, send=lambda to, s, b: (False, "mail server refused"))
+    assert not ok and why == "mail server refused"
+    assert len(db.runs_not_yet_notified()) == 1          # not marked, so the next pass tries again
+
+
+def test_no_address_means_no_nudge_and_nothing_marked(db, props, monkeypatch):
+    monkeypatch.delenv("REPORT_TO", raising=False)
+    mail.set_stored({})
+    held_night(db)
+    ok, why = daily.nudge_unmapped(db, props)
+    assert not ok and "REPORT_TO" in why
+    assert len(db.runs_not_yet_notified()) == 1

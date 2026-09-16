@@ -180,3 +180,54 @@ def test_webhook_is_off_without_a_token_configured(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
     c = TestClient(app_module.app, follow_redirects=False)
     assert c.post("/intake/mail", json={}).status_code == 404
+
+
+# ------------------------------------------------------------------ SynXis, two e-mails
+def synxis_email(path, msg_id):
+    import base64
+    return {"From": "reports@synxis.example", "Subject": Path(path).stem, "MessageID": msg_id,
+            "Date": "Wed, 12 Nov 2025 17:06:00 +0000",
+            "Attachments": [{"Name": Path(path).name,
+                             "Content": base64.b64encode(Path(path).read_bytes()).decode()}]}
+
+
+@pytest.mark.parametrize("first_half", ["transaction_totals_summary.txt", "hotel_ledger_compare.txt"])
+def test_synxis_halves_in_separate_emails_are_paired(bits, props, first_half):
+    """SynXis sends revenue and ledgers as two reports. On a schedule they arrive as two
+    e-mails, and neither balances alone -- whichever lands second must do the joining."""
+    db, store = bits
+    from portal.intake import message_from_postmark
+    halves = {p.name: p for p in (FIXTURES / "synxis").glob("*.txt")}
+    second_half = next(n for n in halves if n != first_half)
+
+    one = ingest(message_from_postmark(synxis_email(halves[first_half], "<a>")),
+                 db=db, storage=store, props=props)
+    run_id, out = one.created[0]
+    assert out.status == "awaiting_companion"          # not "unbalanced": nothing is wrong yet
+    assert "has not arrived yet" in out.message
+    assert db.awaiting_companion("LQ89051", "2025-11-11")["id"] == run_id
+
+    two = ingest(message_from_postmark(synxis_email(halves[second_half], "<b>")),
+                 db=db, storage=store, props=props)
+    _, merged = two.created[0]
+    assert merged.status == "ok" and merged.property_code == "LQ89051"
+    assert len(merged.companions) == 1                 # both halves read together
+    # the half that was waiting is superseded, so the night appears once
+    assert db.get_run(run_id)["superseded"] == 1
+    live = [r for r in db.recent_runs(10, None) if not r["superseded"]]
+    assert len(live) == 1 and live[0]["status"] == "ok"
+
+
+def test_a_lone_synxis_half_keeps_waiting_and_says_so(bits, props):
+    db, store = bits
+    from portal.daily import build
+    from datetime import date, datetime
+    from portal.intake import message_from_postmark
+    half = FIXTURES / "synxis" / "transaction_totals_summary.txt"
+    ingest(message_from_postmark(synxis_email(half, "<only>")), db=db, storage=store, props=props)
+    report = build(db, {"LQ89051": props["LQ89051"]}, date(2025, 11, 11), datetime(2025, 11, 12, 7, 0))
+    row = report.rows[0]
+    assert row.state == "half" and row.is_trouble
+    assert "Hotel Ledger Comparison Report has not arrived yet" in row.detail
+    from portal.daily import as_text
+    assert "Only half the report arrived" in as_text(report)
