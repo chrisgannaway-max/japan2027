@@ -8,7 +8,7 @@ from fake_odoo import FakeTransport
 from pms_to_odoo.journal import entry_to_odoo_values, format_entry, post_entry
 from pms_to_odoo.mapping import GLMapping, MappingError
 from pms_to_odoo.models import DailyReport, ReportLine
-from pms_to_odoo.odoo_client import OdooClient
+from pms_to_odoo.odoo_client import OdooClient, OdooError
 from pms_to_odoo.parsers import get_parser
 
 
@@ -91,3 +91,24 @@ def test_odoo_payload_and_idempotent_post(report, mapping):
 
     dry = post_entry(entry, client, dry_run=True)
     assert dry.status == "dry-run"
+
+
+def test_accounts_are_fetched_in_one_call_not_one_each():
+    """A night touches twenty-odd accounts. Odoo allows about a call a second, so looking each
+    one up separately is the slowest part of sending a night -- and it is paid again on every
+    restart, because the cache lives in the process."""
+    from fake_odoo import FakeTransport
+    from pms_to_odoo.odoo_client import OdooClient
+    t = FakeTransport()
+    client = OdooClient(t)
+    codes = ["4000", "4010", "4020", "4100", "2200", "1010"]
+    client.prefetch_accounts(codes)
+    assert len([c for c in t.calls if c[0] == "account.account"]) == 1
+    t.calls.clear()
+    assert [client.account_id(c) for c in codes]          # all served from the cache
+    assert t.calls == []
+    # a code that does not exist is still reported by name, not silently cached as missing
+    client.prefetch_accounts(["9999"])
+    with pytest.raises(OdooError) as e:
+        client.account_id("9999")
+    assert "9999" in str(e.value)

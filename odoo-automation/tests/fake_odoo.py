@@ -58,6 +58,8 @@ class FakeTransport:
                 results.append(val == v)
             elif op in ("ilike", "=ilike"):
                 results.append(isinstance(val, str) and str(v).lower().strip("%") in val.lower())
+            elif op == "in":
+                results.append(val in (v or []))
             else:
-                results.append(False)
+                raise AssertionError(f"fake Odoo does not implement the {op!r} operator")
         return any(results) if use_or else all(results)

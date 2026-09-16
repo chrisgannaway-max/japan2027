@@ -174,6 +174,28 @@ class OdooClient:
             raise OdooError(f"Company '{company_code_or_name}' not found in Odoo")
         return row["id"]
 
+    def prefetch_accounts(self, codes, company_id: Optional[int] = None) -> None:
+        """Fill the cache for many GL codes in one request.
+
+        A night's entry touches twenty-odd distinct accounts, and looking each one up on its own
+        meant twenty-odd round trips before a single line was written.  Odoo allows roughly one
+        call a second, so that is the slowest part of sending a night, and it is paid again every
+        time the process restarts.  One `code in [...]` gets the lot.  Codes that come back
+        missing are left uncached so that account_id() still raises with the name of the one that
+        is actually absent.
+        """
+        wanted = [c for c in dict.fromkeys(codes)
+                  if ("account", c, company_id) not in self._cache]
+        if not wanted:
+            return
+        ctx = {"allowed_company_ids": [company_id]} if company_id else None
+        rows = self.search_read("account.account", [("code", "in", wanted)],
+                                ["id", "code", "name"], context=ctx)
+        found = {r["code"]: r for r in rows}
+        for code in wanted:
+            if code in found:
+                self._cache[("account", code, company_id)] = found[code]
+
     def account_id(self, code: str, company_id: Optional[int] = None) -> int:
         ctx = {"allowed_company_ids": [company_id]} if company_id else None
         row = self._lookup(("account", code, company_id), "account.account",

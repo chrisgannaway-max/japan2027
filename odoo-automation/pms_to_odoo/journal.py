@@ -20,6 +20,7 @@ def entry_to_odoo_values(entry: JournalEntry, client: OdooClient) -> dict:
     """Resolve codes to ids and build the create() payload for account.move."""
     company_id = client.company_id(entry.company_code)
     journal_id = client.journal_id(entry.journal_code, company_id)
+    client.prefetch_accounts([l.account_code for l in entry.lines], company_id)
     line_cmds = []
     for l in entry.lines:
         vals: dict = {
