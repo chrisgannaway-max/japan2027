@@ -22,7 +22,7 @@ from typing import Optional
 
 
 KEYS = ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_SECURITY",
-        "SMTP_REPLY_TO", "PORTAL_BASE_URL")
+        "SMTP_REPLY_TO", "PORTAL_BASE_URL", "REPORT_TO")
 SECRET_KEYS = ("SMTP_PASSWORD",)
 
 #: filled in from the database by the portal; the environment always wins over it, so a

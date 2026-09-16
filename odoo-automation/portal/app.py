@@ -38,7 +38,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
                     new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
-from . import intake, poster, storage
+from . import daily, intake, poster, scheduler, storage
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -122,6 +122,7 @@ class State:
 
 
 state = State()
+scheduler.start(state)
 
 
 # ------------------------------------------------------------------ auth helpers
@@ -530,6 +531,20 @@ async def intake_mail(request: Request, background: BackgroundTasks):
             "runs": [{"id": rid, "property": r.property_code, "status": r.status}
                      for rid, r in res.created],
             "duplicates": res.duplicates, "ignored": res.ignored}
+
+
+@app.get("/daily", response_class=PlainTextResponse)
+def daily_report(day: Optional[str] = None, user: User = Depends(require_admin)):
+    """The morning list, exactly as the e-mail sends it.  Plain text on purpose: it is the same
+    thing read two ways, so there is no second version to drift."""
+    d = date.fromisoformat(day) if day else scheduler.business_date_for(datetime.now())
+    return daily.as_text(daily.build(state.db, state.props, d), mail.base_url())
+
+
+@app.post("/daily/send")
+def daily_send(user: User = Depends(require_admin)):
+    sent, why = scheduler.send_report(state, force=True)
+    return RedirectResponse("/admin?" + ("msg=Report+sent" if sent else f"err={why}"), status_code=303)
 
 
 @app.get("/health", response_class=PlainTextResponse)

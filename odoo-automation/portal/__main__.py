@@ -1,7 +1,8 @@
 """python -m portal serve [--port 8000]     run the site
    python -m portal hash <password>         print a password hash for users.yaml
    python -m portal seed                    PORTAL_STORE=db: load properties/users from the config files
-   python -m portal post                    send balanced nights waiting for Odoo (for cron)"""
+   python -m portal post                    send balanced nights waiting for Odoo (for cron)
+   python -m portal report [--send]         print, or e-mail, this morning's list"""
 import sys
 
 if len(sys.argv) >= 3 and sys.argv[1] == "hash":
@@ -22,6 +23,16 @@ elif len(sys.argv) >= 2 and sys.argv[1] == "post":
     if state.delivery != "odoo" or not state.odoo_enabled:
         sys.exit("set DELIVERY_MODE=odoo with ODOO_URL and ODOO_API_KEY to send entries")
     print(poster.post_due(state.db, autopost=state.autopost))
+elif len(sys.argv) >= 2 and sys.argv[1] == "report":
+    from . import daily, scheduler
+    from .app import state
+    from datetime import datetime
+    day = scheduler.business_date_for(datetime.now())
+    if "--send" in sys.argv:
+        sent, why = scheduler.send_report(state, force=True)
+        print("sent" if sent else f"not sent: {why}")
+    else:
+        print(daily.as_text(daily.build(state.db, state.props, day)))
 elif len(sys.argv) >= 2 and sys.argv[1] == "serve":
     import uvicorn
     port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8000

@@ -484,6 +484,63 @@ Anything still waiting can be sent by hand, or from cron:
 python3 -m portal post
 ```
 
+## The morning list, and the loop that sends it
+
+With packs arriving by e-mail and nobody signing in but the bookkeeper, this is the only thing
+watching. A GM who uploads sees in seconds whether the night balanced; a GM who e-mails sees
+nothing, so a night can go missing in silence.
+
+One list, four kinds of trouble, because they are all the same job -- find out what happened to
+last night:
+
+```
+Night audit for 2025-11-10
+
+6 of 6 properties need attention.
+
+Nothing has arrived:
+  CANDLEWOOD-MOORE - Candlewood Suites Moore Oklahoma
+      due by 06:00
+
+Waiting for account codes:
+  TXI47 - Comfort Inn Wichita Falls near University
+      Pet Fee, Resort Fee, Parking and 1 more
+      https://.../runs/2
+
+Does not balance:
+  OKCMD - Holiday Inn Express & Suites Oklahoma City Airport
+      debits 11191.64 vs credits 11106.22, out by 85.42
+
+Odoo would not take it:
+  OKCON - Embassy Suites by Hilton Oklahoma City Northwest
+      GL account with code '4915' not found in Odoo (company 3)
+```
+
+Properties that arrived and balanced get one line at the bottom: a list that shows the fine ones
+as loudly as the broken ones gets skimmed. When everything is fine it says so and stops.
+
+Read the same thing any time at `/daily`, or `python3 -m portal report`.
+
+### Turning the loop on
+
+```
+SCHEDULER=on
+SCHEDULER_INTERVAL=600        # seconds; the default
+REPORT_TO=office@example.com  # also settable on the E-mail setup page
+```
+
+It is off unless asked for, because something that writes to a client's accounting system on a
+timer should be switched on deliberately. Once on it does two things: drains the posting queue,
+so a night that failed at 3am is retried within the hour rather than waiting for tomorrow's
+e-mail; and sends the list once, after the last property's cut-off, recording the date so a
+restart cannot send it twice.
+
+The cut-off is 06:00, overridden per property with `due_by: "05:30"` in its configuration. A
+property with nothing yet reads as *not due* before its cut-off and *nothing has arrived* after.
+
+If you would rather use the host's own scheduler than the built-in loop, leave `SCHEDULER` off
+and run `python3 -m portal post` and `python3 -m portal report --send` from cron.
+
 ## Still needed from the client
 
 The software is finished ahead of these; each one is a value to fill in, not work to do.
