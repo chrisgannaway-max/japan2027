@@ -110,6 +110,8 @@ class Database:
         self.path = getattr(self.pool, "path", None)
         with self._conn() as c:
             c.executescript(SCHEMA)
+            for col, decl in (("post_attempts", "INTEGER DEFAULT 0"), ("post_error", "TEXT")):
+                c.add_column_if_missing("runs", col, decl)   # databases made before the queue
 
     def _conn(self):
         return self.pool.connect()
@@ -182,6 +184,34 @@ class Database:
                 return c.execute(f"SELECT * FROM runs WHERE property_code IN ({marks}) ORDER BY id DESC LIMIT ?",
                                  (*property_codes, limit)).fetchall()
             return c.execute("SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+
+    # ------------------------------------------------------------- the posting queue
+    def runs_awaiting_post(self, limit: int = 50, max_attempts: int = 5) -> list[dict]:
+        """Balanced nights that have not reached Odoo yet, oldest first.
+
+        Deliberately derived from what is already true -- not yet posted, still the live run for
+        its night, balanced -- rather than from a separate status column that could disagree with
+        them.  A run that has failed too often drops out and waits for a person.
+        """
+        with self._conn() as c:
+            return c.execute(
+                "SELECT * FROM runs WHERE status='ok' AND superseded=0 AND posted_at IS NULL "
+                "AND COALESCE(post_attempts, 0) < ? ORDER BY id LIMIT ?",
+                (max_attempts, limit)).fetchall()
+
+    def runs_stuck(self, max_attempts: int = 5) -> list[dict]:
+        """Balanced nights that gave up trying.  These need a person, so they belong on the
+        daily report next to the ones that never arrived."""
+        with self._conn() as c:
+            return c.execute(
+                "SELECT * FROM runs WHERE status='ok' AND superseded=0 AND posted_at IS NULL "
+                "AND COALESCE(post_attempts, 0) >= ? ORDER BY business_date, property_code",
+                (max_attempts,)).fetchall()
+
+    def record_post_failure(self, run_id: int, error: str) -> None:
+        with self._conn() as c:
+            c.execute("UPDATE runs SET post_attempts = COALESCE(post_attempts, 0) + 1, post_error=? "
+                      "WHERE id=?", (error[:500], run_id))
 
     def mark(self, run_id: int, **fields) -> None:
         cols = ", ".join(f"{k}=?" for k in fields)

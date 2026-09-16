@@ -1,6 +1,7 @@
 """python -m portal serve [--port 8000]     run the site
    python -m portal hash <password>         print a password hash for users.yaml
-   python -m portal seed                    PORTAL_STORE=db: load properties/users from the config files"""
+   python -m portal seed                    PORTAL_STORE=db: load properties/users from the config files
+   python -m portal post                    send balanced nights waiting for Odoo (for cron)"""
 import sys
 
 if len(sys.argv) >= 3 and sys.argv[1] == "hash":
@@ -15,6 +16,12 @@ elif len(sys.argv) >= 2 and sys.argv[1] == "seed":
     counts = state.store.import_from_yaml(CONFIG, USERS, overwrite="--overwrite" in sys.argv)
     print(f"imported {counts['properties']} properties and {counts['users']} users "
           f"into {state.store.pool.describe()}")
+elif len(sys.argv) >= 2 and sys.argv[1] == "post":
+    from . import poster
+    from .app import state
+    if state.delivery != "odoo" or not state.odoo_enabled:
+        sys.exit("set DELIVERY_MODE=odoo with ODOO_URL and ODOO_API_KEY to send entries")
+    print(poster.post_due(state.db, autopost=state.autopost))
 elif len(sys.argv) >= 2 and sys.argv[1] == "serve":
     import uvicorn
     port = int(sys.argv[sys.argv.index("--port") + 1]) if "--port" in sys.argv else 8000

@@ -457,6 +457,33 @@ the same bytes are the same report however many people forwarded it; and the `PM
 reference means a genuine re-run with corrections supersedes the earlier one instead of posting
 twice.
 
+## Sending nights to Odoo on their own
+
+With `DELIVERY_MODE=odoo`, a night that parses and balances goes to Odoo without anyone pressing
+anything. It happens *after* the response to whoever delivered the pack, so an arriving e-mail
+never waits on Odoo, and Odoo being slow never makes a mail provider decide the delivery failed
+and send it again.
+
+One property per call, deliberately. Seven hotels posted as a batch fail as a batch, and then
+nobody can say which hotels are in the books. Sent one at a time, a failure is one row still
+waiting and a retry touches only that row.
+
+A night that fails records the reason and is tried again on the next pass, up to five times.
+After that it stops and waits for a person -- a missing GL account or a bot user without rights
+is not something retrying will fix, and the daily report is where it should appear. If Odoo
+itself is unreachable, nothing is counted against any night, because that is not any night's
+fault.
+
+Re-running is safe twice over: a posted run is no longer selected, and even if it were, the
+reference is looked up in Odoo first and the existing move is returned rather than a second one
+created.
+
+Anything still waiting can be sent by hand, or from cron:
+
+```bash
+python3 -m portal post
+```
+
 ## Still needed from the client
 
 The software is finished ahead of these; each one is a value to fill in, not work to do.

@@ -19,7 +19,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
@@ -38,7 +38,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
                     new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
-from . import intake, storage
+from . import intake, poster, storage
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -59,6 +59,18 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 
 
 AUTOPOST_KEY = "ODOO_AUTOPOST"
+
+
+def _drain_queue() -> None:
+    """Send whatever is waiting.  Runs after the response has gone out, so a hotel's pack
+    arriving never waits on Odoo, and Odoo being slow never makes a mail provider decide the
+    delivery failed and send it again."""
+    if state.delivery != "odoo" or not state.odoo_enabled:
+        return                                   # download mode: the queue simply waits
+    try:
+        print(f"[post] {poster.post_due(state.db, autopost=state.autopost)}")
+    except Exception as e:                       # noqa: BLE001 - a background task must not die quietly
+        print(f"[post] queue run failed: {e}")
 
 
 def _users_file() -> Path:
@@ -337,7 +349,7 @@ def upload_form(request: Request, user: User = Depends(require_user)):
 
 
 @app.post("/upload", response_class=HTMLResponse)
-async def upload(request: Request, user: User = Depends(require_user),
+async def upload(request: Request, background: BackgroundTasks, user: User = Depends(require_user),
                  property_code: str = Form(""), files: list[UploadFile] = File(...)):
     props = visible_properties(user)
     allowed = None if user.is_admin else set(props)
@@ -365,6 +377,7 @@ async def upload(request: Request, user: User = Depends(require_user),
                                   pms=res.pms, ref=res.ref, status=res.status, message=res.message,
                                   file_name=path.name, stored_path=locator, result_json=res.to_json())
         results.append((run_id, res))
+    background.add_task(_drain_queue)
     runs = state.db.recent_runs(20, None if user.is_admin else list(props))
     return render(request, "upload.html", props=props, runs=runs, results=results)
 
@@ -490,7 +503,7 @@ INTAKE_TOKEN = os.environ.get("INTAKE_TOKEN", "")
 
 
 @app.post("/intake/mail")
-async def intake_mail(request: Request):
+async def intake_mail(request: Request, background: BackgroundTasks):
     """An inbound mail provider POSTs one message here.
 
     The provider does not sign its requests, so the shared secret in INTAKE_TOKEN is what
@@ -512,6 +525,7 @@ async def intake_mail(request: Request):
           f"{len(res.duplicates)} duplicate(s), {len(res.ignored)} ignored")
     # Always 200 once the message is ours: a report we could not parse is recorded as a run to
     # look at, not an error for the provider to retry until it gives up.
+    background.add_task(_drain_queue)
     return {"accepted": True,
             "runs": [{"id": rid, "property": r.property_code, "status": r.status}
                      for rid, r in res.created],
