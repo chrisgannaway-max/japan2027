@@ -152,3 +152,28 @@ def test_invoice_upload_and_refusal_use_the_bucket(client, fake):
                         files=[("file", ("pep.txt", fh, "text/plain"))])
     assert r.status_code == 200 and "night-audit report, not an invoice" in r.text
     assert set(fake.objects) == before
+
+
+def test_new_style_secret_keys_authenticate(fake):
+    """Supabase's newer sb_secret_ keys are not JWTs and are refused in Authorization: Bearer.
+    They go on apikey, which is what the gateway reads for either generation of key."""
+    s = storage.SupabaseStorage(fake.url, "sb_secret_abc123", "night-audit")
+    # the fake only knows TOKEN, so point it at this key for the check
+    import fake_supabase
+    monkey = fake_supabase.TOKEN
+    fake_supabase.TOKEN = "sb_secret_abc123"
+    try:
+        locator = s.save("uploads/x.txt", b"hello")
+        assert s.read(locator) == b"hello"
+        sent = fake.auth_headers[-1]
+        assert sent["apikey"] == "sb_secret_abc123"
+        assert "Authorization" not in sent          # not a JWT: never sent as a bearer token
+    finally:
+        fake_supabase.TOKEN = monkey
+        s.close()
+
+
+def test_legacy_jwt_keys_still_send_both_headers(fake, remote):
+    remote.save("uploads/y.txt", b"hi")
+    sent = fake.auth_headers[-1]
+    assert sent["apikey"] == TOKEN and sent["Authorization"] == f"Bearer {TOKEN}"

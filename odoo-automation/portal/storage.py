@@ -66,7 +66,17 @@ class SupabaseStorage:
         return f"{self.base}/storage/v1/object/{self.bucket}/{key.lstrip('/')}"
 
     def _headers(self, extra: Optional[dict] = None) -> dict:
-        h = {"Authorization": f"Bearer {self.key}"}
+        """Supabase has two generations of key and they authenticate differently.
+
+        The legacy `service_role` key is a JWT and works in either header.  The newer
+        `sb_secret_...` keys are not JWTs and are rejected in `Authorization: Bearer`; they go on
+        `apikey`.  `apikey` is what the gateway reads in both cases, so it always goes, and
+        Authorization is added only for a key that is actually a JWT.  Getting this wrong is a
+        401 with nothing in it to say which of the two mistakes you made.
+        """
+        h = {"apikey": self.key}
+        if self.key.startswith("ey"):            # a JWT: the legacy anon / service_role keys
+            h["Authorization"] = f"Bearer {self.key}"
         h.update(extra or {})
         return h
 

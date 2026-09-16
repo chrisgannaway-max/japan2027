@@ -14,7 +14,9 @@ from __future__ import annotations
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-TOKEN = "service-role-key"
+#: shaped like a real legacy service_role key, which is a JWT.  The shape matters: the
+#: adapter decides how to authenticate from it.
+TOKEN = "eyJhbGciOiJIUzI1NiJ9.c2VydmljZV9yb2xl.sig"
 PREFIX = "/storage/v1/object/"
 
 
@@ -22,6 +24,7 @@ class FakeSupabase:
     def __init__(self):
         self.objects: dict[str, bytes] = {}          # "bucket/key" -> bytes
         self.requests: list[tuple[str, str]] = []    # (method, bucket/key), so tests can count them
+        self.auth_headers: list[dict] = []           # what each request authenticated with
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -34,7 +37,11 @@ class FakeSupabase:
                 return self.path[len(PREFIX):]
 
             def _auth_ok(self):
-                return self.headers.get("Authorization") == f"Bearer {TOKEN}"
+                """Supabase's gateway reads `apikey`; a legacy JWT may also arrive as a bearer
+                token.  Accept either, and record which arrived so a test can check it."""
+                outer.auth_headers.append(dict(self.headers))
+                return (self.headers.get("apikey") == TOKEN
+                        or self.headers.get("Authorization") == f"Bearer {TOKEN}")
 
             def _send(self, code, body=b"", content_type="application/json"):
                 self.send_response(code)

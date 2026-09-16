@@ -194,7 +194,13 @@ accounting entry. On one machine the data directory is fine. On a replaceable co
 belong in object storage.
 
 In the Supabase dashboard: **Storage → New bucket**, name it `night-audit`, and leave **Public
-bucket off**. Then *Project Settings → API* for the URL and the `service_role` key.
+bucket off**. Then **Settings → API Keys** for the URL and a server-side key.
+
+Supabase has two generations of key and either works here. The legacy `service_role` key is a
+JWT; the newer `sb_secret_...` keys are not, and Supabase rejects those in an `Authorization:
+Bearer` header. The adapter always sends `apikey`, which the gateway reads for both, and adds
+`Authorization` only when the key really is a JWT — so you can paste whichever your project
+shows without thinking about it.
 
 ```bash
 export SUPABASE_URL=https://<project>.supabase.co
