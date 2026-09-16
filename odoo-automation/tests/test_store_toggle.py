@@ -1,4 +1,5 @@
 """PORTAL_STORE=db: configuration in the database, edited on the admin screens."""
+import os
 import importlib
 
 import pytest
@@ -106,3 +107,18 @@ def test_autopost_pinned_on_the_host_cannot_be_changed_in_the_browser(tmp_path, 
     r = client.post("/admin/odoo-autopost", data={})
     assert r.status_code == 303 and "Pinned" in r.headers["location"]
     assert app_module.state.autopost is True                # the environment still wins
+
+
+@pytest.mark.skipif(not os.environ.get("DATABASE_URL", "").startswith(("postgres://", "postgresql://")),
+                    reason="needs a PostgreSQL DATABASE_URL")
+def test_postgres_never_prepares_statements():
+    """Supabase's transaction pooler (port 6543) hands each query whichever server connection is
+    free, so a prepared statement from an earlier query may not be there -- and it fails under
+    load rather than at once. A night audit is a few dozen queries a day; preparing them buys
+    nothing and rules out a whole connection string."""
+    from portal.sql import Pool
+    c = Pool(os.environ["DATABASE_URL"]).connect()
+    assert c._raw.prepare_threshold is None
+    with c as conn:
+        for _ in range(12):                 # past psycopg's default threshold of five
+            conn.execute("SELECT 1").fetchone()

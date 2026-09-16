@@ -180,10 +180,20 @@ That is the whole change. Tables are created on first start, and the startup lin
 `database: PostgreSQL ...` with the password masked. The same test suite passes on both, so
 this is a supported configuration rather than a hopeful one.
 
-**A Supabase-specific trap:** the project gives you more than one connection string. Use the
-**direct connection or the session pooler (port 5432)**, not the transaction pooler (port
-6543). Transaction pooling does not keep prepared statements, which the database driver relies
-on; the symptom is `prepared statement "_pg3_..." already exists` under load.
+**Where Supabase keeps the connection string:** the **Connect** button at the top of the project
+dashboard, not in Settings. It offers a direct connection, a session pooler (5432) and a
+transaction pooler (6543).
+
+Prefer the **session pooler**. All three work, though: prepared statements are switched off for
+PostgreSQL (`prepare_threshold = None`), which is what would otherwise break behind a
+transaction-mode pooler -- the statement belongs to a server connection the next query may not
+get, and it fails as `prepared statement already exists` under load rather than at once. A night
+audit is a few dozen queries a day, so preparing them buys nothing and rules out a connection
+string for no reason.
+
+If a connection simply times out, that is the other Supabase trap: direct connections and the
+pooler are reachable over IPv6, and over IPv4 only with the add-on. Try a different one of the
+three before assuming the credentials are wrong.
 
 ---
 

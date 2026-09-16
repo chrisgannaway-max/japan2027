@@ -175,6 +175,13 @@ class Pool:
             import psycopg
             from psycopg.rows import dict_row
             raw = psycopg.connect(self.url, row_factory=dict_row, autocommit=False)
+            # Never prepare statements.  psycopg starts preparing a query after it has been seen
+            # a few times, which breaks behind a transaction-mode pooler (PgBouncer, Supabase's
+            # 6543 port): the prepared statement belongs to a server connection the next query
+            # may not get, and it fails as "prepared statement already exists" under load rather
+            # than at once.  A night audit is a few dozen queries a day; preparing them buys
+            # nothing, and not preparing them means any connection string works.
+            raw.prepare_threshold = None
             return Conn(raw, POSTGRES)
         raw = sqlite3.connect(str(self.path))
         raw.row_factory = sqlite3.Row
