@@ -46,6 +46,23 @@ SECTION_HEADERS = {
 }
 
 
+def _bare_code(text: str) -> str:
+    """The property code when it is printed on its own line rather than after "Hotel ID :".
+
+    Hilton Garden Inn puts the hotel name on one line and OKCAH on the next; Embassy Suites
+    labels it.  Only the first few lines are considered, because further down the report is full
+    of upper-case words -- REVENUE, PREPAID, ALLOWANCE -- that would match just as well.
+    """
+    for raw in text.splitlines()[:12]:
+        line = collapse(raw)
+        # Either the code alone on its line, or first on a line it shares with the run details --
+        # "OKCAH  Report run date: Nov 12, 2025" is how Hilton Garden Inn prints it.
+        m = re.match(r"([A-Z][A-Z0-9]{2,9})(?:\s+Report\s+run|\s*$)", line)
+        if m and m.group(1) not in ("PAGE", "USD", "FINAL", "DATE"):
+            return m.group(1)
+    return ""
+
+
 class HiltonPEPParser(BaseParser):
     pms = "PEP"
     brand = "Hilton"
@@ -56,13 +73,14 @@ class HiltonPEPParser(BaseParser):
         text = read_text(path)
         flat = collapse(re.sub(r"===== (PAGE|ATTACHMENT)[^\n]*", " ", text))
         m = re.search(r"Hotel ID\s*:\s*([A-Z0-9]+)", flat)
+        hotel_id = m.group(1) if m else _bare_code(text)
         d = None
         for dm in re.finditer(r"(?<!Run )\bDate\s*:\s*([A-Za-z]{3} \d{1,2}, \d{4})", flat):
             d = parse_date(dm.group(1))
             break
         report = DailyReport(property_code=property_code, pms=self.pms,
                              business_date=business_date or d or date.today(),
-                             source_file=str(path), pms_property_id=m.group(1) if m else "")
+                             source_file=str(path), pms_property_id=hotel_id)
         nm = re.match(r"(.+?)\s+Date\s*:", flat)
         report.property_name = nm.group(1).strip() if nm else ""
         if "Final Audit" not in flat:

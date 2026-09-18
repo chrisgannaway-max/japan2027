@@ -39,7 +39,9 @@ def detect_pms(text: str) -> Optional[str]:
     """Guess the PMS from report text (used by `batch` and `inspect`)."""
     flat = collapse(text)
     low = flat.lower()
-    if "final audit" in low and "hotel id" in low:
+    # Not every Hilton property labels its code "Hotel ID" -- some print it on a bare line under
+    # the hotel name -- so the report's own column heading is the surer mark of a PEP pack.
+    if "final audit" in low and ("hotel id" in low or "net today" in low or "hotel balance" in low):
         return "PEP"
     if "trial balance report" in low and "net change" in low and "usd" in low:
         return "HOTELKEY"

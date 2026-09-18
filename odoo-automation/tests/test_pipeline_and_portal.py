@@ -232,3 +232,16 @@ def test_a_single_run_downloads_as_csv(client):
 
     flat = client.get("/runs/1/csv?fmt=flat")
     assert flat.status_code == 200 and flat.text != odoo.text
+
+
+def test_a_report_naming_an_unknown_hotel_is_not_given_to_another_one(props):
+    """A Hilton Garden Inn pack says OKCAH. Only one configured property runs PEP, so the
+    "single property on this PMS" fallback would have handed OKCAH's night to the Embassy
+    Suites -- in balance, and wrong."""
+    from pms_to_odoo.pipeline import match_property
+    from pathlib import Path as _P
+    assert match_property(props, _P("x.pdf"), "OKCAH", "Hilton Garden Inn", "PEP") is None
+    # the fallback still works when the report gives us nothing to go on
+    assert match_property(props, _P("x.pdf"), "", "", "PEP") == "OKCON"
+    # and a report id that does match is still honoured
+    assert match_property(props, _P("x.pdf"), "OKCON", "", "PEP") == "OKCON"

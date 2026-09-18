@@ -143,6 +143,11 @@ def match_property(props: dict[str, dict], file: Path, report_id: str, report_na
     for code in sorted(cands, key=len, reverse=True):
         if stem.startswith(code.upper()):
             return code
+    if report_id:
+        # The report named a hotel and no configured property answers to it.  Falling through to
+        # "the only property on this PMS" would book one hotel's night into another's books --
+        # a seventh Hilton arriving would land on the first Hilton, silently and in balance.
+        return None
     if pms:
         same = [c for c, p in cands.items() if str(p.get("pms", "")).upper() == pms]
         if len(same) == 1:
