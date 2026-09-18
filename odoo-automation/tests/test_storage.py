@@ -72,14 +72,27 @@ def test_supabase_download_and_cache(fake, remote):
     assert len([r for r in fake.requests if r[0] == "GET"]) == before
 
 
-def test_supabase_reports_problems(fake, remote):
-    with pytest.raises(FileNotFoundError):
+def test_supabase_reports_problems_in_words(fake, remote):
+    """A missing bucket and a refused key are the two that happen, and both arrive as a bare
+    number from Supabase. Each has to name what to do, or it reaches somebody as a 500."""
+    with pytest.raises(storage.StorageError) as missing:
         remote.local_path("supabase://night-audit/uploads/missing.txt")
-    bad = storage.SupabaseStorage(fake.url, "wrong-key", "night-audit")
-    with pytest.raises(RuntimeError) as e:
+    assert "400" in str(missing.value)
+
+    bad = storage.SupabaseStorage(fake.url, "eyJwrong.key.here", "night-audit")
+    with pytest.raises(storage.StorageError) as refused:
         bad.save("uploads/a.txt", b"x")
-    assert "401" in str(e.value)
+    assert "401" in str(refused.value) and "publishable key cannot" in str(refused.value)
     bad.close()
+
+    # a bucket nobody created: the commonest first-deploy mistake, and the least obvious
+    gone = storage.SupabaseStorage(fake.url, TOKEN, "night-audit")
+    gone._object_url = lambda key: f"{fake.url}/nope/{key}"      # the route Supabase 404s
+    with pytest.raises(storage.StorageError) as nobucket:
+        gone.save("uploads/a.txt", b"x")
+    assert "404" in str(nobucket.value) and "does not exist in this project" in str(nobucket.value)
+    assert "Public bucket off" in str(nobucket.value)
+    gone.close()
 
 
 def test_local_paths_still_work_after_the_move(tmp_path, remote):

@@ -27,6 +27,11 @@ from typing import Optional
 SUPABASE_SCHEME = "supabase://"
 
 
+class StorageError(RuntimeError):
+    """Saving or fetching a file failed.  Its own class so a route can tell a storage problem
+    (which the person can fix, and which should not lose their upload) from a bug."""
+
+
 class LocalStorage:
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -80,6 +85,19 @@ class SupabaseStorage:
         h.update(extra or {})
         return h
 
+    def _why(self, status: int) -> str:
+        """The three answers Supabase gives, in words rather than numbers."""
+        if status == 404:
+            return (f"  The bucket '{self.bucket}' does not exist in this project. Create it under "
+                    "Storage in the Supabase dashboard, with Public bucket off.")
+        if status in (401, 403):
+            return ("  The key was refused. SUPABASE_SERVICE_KEY has to be the server-side secret "
+                    "(sb_secret_..., or the legacy service_role) -- the publishable key cannot "
+                    "write to a private bucket.")
+        if status == 413:
+            return "  The file is larger than this project allows for a single upload."
+        return ""
+
     @staticmethod
     def _key_of(locator: str) -> str:
         return locator[len(SUPABASE_SCHEME):].split("/", 1)[1]
@@ -92,7 +110,8 @@ class SupabaseStorage:
         r = httpx.post(self._object_url(key), content=data, timeout=60,
                        headers=self._headers({"Content-Type": content_type, "x-upsert": "true"}))
         if r.status_code >= 300:
-            raise RuntimeError(f"Supabase upload failed ({r.status_code}): {r.text[:200]}")
+            raise StorageError(f"Supabase upload failed ({r.status_code}): {r.text[:200]}"
+                               + self._why(r.status_code))
         locator = f"{SUPABASE_SCHEME}{self.bucket}/{key.lstrip('/')}"
         path = self._tmp / key
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -113,7 +132,8 @@ class SupabaseStorage:
         key = self._key_of(locator)
         r = httpx.get(self._object_url(key), headers=self._headers(), timeout=60)
         if r.status_code >= 300:
-            raise FileNotFoundError(f"Supabase download failed ({r.status_code}) for {locator}")
+            raise StorageError(f"Supabase download failed ({r.status_code}) for {locator}"
+                               + self._why(r.status_code))
         path = self._tmp / key
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(r.content)

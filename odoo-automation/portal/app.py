@@ -399,8 +399,14 @@ async def upload(request: Request, background: BackgroundTasks, user: User = Dep
         if Path(name).suffix.lower() not in ALLOWED_SUFFIXES:
             results.append((0, RunResult(status="error", file_name=name, message="Only PDF, CSV, XLSX, EML or TXT files")))
             continue
-        locator = state.storage.save(f"{prefix}/{name}", await f.read())
-        saved.append((state.storage.local_path(locator), locator))
+        try:
+            locator = state.storage.save(f"{prefix}/{name}", await f.read())
+            saved.append((state.storage.local_path(locator), locator))
+        except storage.StorageError as e:
+            # A bucket that does not exist, or a key that is refused, is somebody's configuration
+            # -- not a crash.  Say which file and why, on the page they are already looking at.
+            results.append((0, RunResult(status="error", file_name=name, message=str(e))))
+            print(f"[upload] storage refused {name}: {e}")
     consumed: set[Path] = set()
     for path, locator in saved:              # same folder, so SynXis pairs find each other
         if path in consumed:
@@ -559,7 +565,13 @@ async def intake_mail(request: Request, background: BackgroundTasks):
     except Exception:  # noqa: BLE001
         raise HTTPException(400, "expected JSON") from None
     msg = intake.message_from_postmark(payload)
-    res = intake.ingest(msg, db=state.db, storage=state.storage, props=state.props)
+    try:
+        res = intake.ingest(msg, db=state.db, storage=state.storage, props=state.props)
+    except storage.StorageError as e:
+        # 503 rather than 500: the provider should try this message again once somebody has
+        # fixed the bucket, instead of giving up on a night that never reached us.
+        print(f"[intake] storage refused {msg.message_id}: {e}")
+        raise HTTPException(503, f"Could not store the attachment: {e}") from None
     print(f"[intake] {msg.sender or '?'} -> {len(res.created)} run(s), "
           f"{len(res.duplicates)} duplicate(s), {len(res.ignored)} ignored")
     # Always 200 once the message is ours: a report we could not parse is recorded as a run to
@@ -681,8 +693,12 @@ async def invoice_upload(request: Request, user: User = Depends(require_user),
                       error="Only PDF, PNG, JPG or TXT invoices"))
     key = (f"invoices/{property_code or 'unsorted'}/{datetime.now().strftime('%Y%m')}"
            f"/{datetime.now().strftime('%Y%m%d-%H%M%S')}-{name}")
-    locator = state.storage.save(key, await file.read())
-    target = state.storage.local_path(locator)
+    try:
+        locator = state.storage.save(key, await file.read())
+        target = state.storage.local_path(locator)
+    except storage.StorageError as e:
+        return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None,
+                      inv_id=None, error=str(e)))
     pms = _night_audit_report_in(target)
     if pms:
         state.storage.delete(locator)
