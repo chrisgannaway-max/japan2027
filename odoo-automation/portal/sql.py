@@ -180,7 +180,10 @@ class Pool:
         if self.dialect == POSTGRES:
             import psycopg
             from psycopg.rows import dict_row
-            raw = psycopg.connect(self.url, row_factory=dict_row, autocommit=False)
+            try:
+                raw = psycopg.connect(self.url, row_factory=dict_row, autocommit=False)
+            except psycopg.OperationalError as e:
+                raise psycopg.OperationalError(f"{e}{self._hint(str(e))}") from None
             # Never prepare statements.  psycopg starts preparing a query after it has been seen
             # a few times, which breaks behind a transaction-mode pooler (PgBouncer, Supabase's
             # 6543 port): the prepared statement belongs to a server connection the next query
@@ -192,6 +195,34 @@ class Pool:
         raw = sqlite3.connect(str(self.path))
         raw.row_factory = sqlite3.Row
         return Conn(raw, SQLITE)
+
+    def _hint(self, message: str) -> str:
+        """Turn the two connection failures that actually happen into instructions.
+
+        Both look like something they are not.  A Supabase direct connection resolves to IPv6
+        only unless the project pays for the IPv4 add-on, so a host that speaks IPv4 -- Render,
+        most of them -- gets "Network is unreachable" against a raw address, which reads like the
+        database is down.  And a password with a symbol in it silently truncates the URL, which
+        reads like the wrong password.
+        """
+        low = message.lower()
+        # `@db.<ref>.supabase.co` is the direct connection.  Matching on ".supabase.co" alone
+        # would also match the pooler, whose host ends .supabase.com -- and telling somebody to
+        # switch to the thing they are already using is worse than saying nothing.
+        if "network is unreachable" in low and re.search(r"@db\.[a-z0-9]+\.supabase\.co\b", self.url):
+            return ("\n\nHINT: that is Supabase's direct connection, which is reachable over IPv6 "
+                    "only unless the project has the IPv4 add-on. Most hosts are IPv4. Use the "
+                    "session pooler string instead: press Connect in the Supabase dashboard and "
+                    "take the Session pooler URI -- the user gains the project ref "
+                    "(postgres.<ref>) and the host becomes <region>.pooler.supabase.com.")
+        # More than one "@" between the scheme and the path means the password contains one
+        # unencoded, which ends the userinfo early and sends a truncated password.
+        authority = self.url.split("://", 1)[-1].split("/", 1)[0]
+        if "password authentication failed" in low and authority.count("@") > 1:
+            return ("\n\nHINT: the password appears to contain a character that has a meaning "
+                    "inside a URL. Percent-encode it -- @ becomes %40, # becomes %23, / becomes "
+                    "%2F, : becomes %3A -- or set a password of letters and digits only.")
+        return ""
 
     def describe(self) -> str:
         if self.dialect == SQLITE:

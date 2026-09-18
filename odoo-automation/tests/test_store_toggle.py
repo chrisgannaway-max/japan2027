@@ -148,3 +148,24 @@ def test_our_columns_are_only_our_own_schema():
     finally:
         with psycopg.connect(url) as c:
             c.execute("DROP TABLE IF EXISTS users"); c.execute("DROP SCHEMA IF EXISTS auth CASCADE"); c.commit()
+
+
+def test_connection_failures_explain_themselves():
+    """The two that actually happen both look like something they are not: Supabase's direct
+    connection is IPv6-only, so an IPv4 host reads "Network is unreachable" as the database being
+    down; and a symbol in the password truncates the URL, which reads as a wrong password."""
+    from portal.sql import Pool
+
+    direct = Pool("postgresql://postgres:pw@db.przmgvjgvfiqjubugsol.supabase.co:5432/postgres")
+    real = ('connection to server at "2600:1f16:1109:3f02:634e:40f1:54f4:47d0", port 5432 '
+            'failed: Network is unreachable')
+    hint = direct._hint(real)
+    assert "session pooler" in hint and "IPv6" in hint and "postgres.<ref>" in hint
+
+    pooler = Pool("postgresql://postgres.abc:pw@aws-0-us-east-1.pooler.supabase.com:5432/postgres")
+    assert pooler._hint(real) == ""                      # not the direct host: not that problem
+
+    at_sign = Pool("postgresql://postgres:p@ss@db.example.supabase.co:5432/postgres")
+    assert "%40" in at_sign._hint("FATAL: password authentication failed for user")
+    clean = Pool("postgresql://postgres:plainpw@db.example.supabase.co:5432/postgres")
+    assert clean._hint("FATAL: password authentication failed for user") == ""
