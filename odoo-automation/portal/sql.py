@@ -146,7 +146,13 @@ class Conn:
 
     def columns(self, table: str) -> set[str]:
         if self.dialect == POSTGRES:
-            rows = self.execute("SELECT column_name FROM information_schema.columns WHERE table_name=?",
+            # Only our own schema.  A bare table_name matches every schema in the database, and
+            # a Supabase project ships with auth.users, storage.objects and more.  Asking whether
+            # "users" has an "email" column would find auth.users.email and answer yes about a
+            # table we never touch -- so the column would not be added and every login would then
+            # fail looking for it.
+            rows = self.execute("SELECT column_name FROM information_schema.columns "
+                                "WHERE table_name=? AND table_schema=current_schema()",
                                 (table,)).fetchall()
             return {r["column_name"] for r in rows}
         return {r["name"] for r in self.execute(f"PRAGMA table_info({table})").fetchall()}

@@ -122,3 +122,29 @@ def test_postgres_never_prepares_statements():
     with c as conn:
         for _ in range(12):                 # past psycopg's default threshold of five
             conn.execute("SELECT 1").fetchone()
+
+
+@pytest.mark.skipif(not os.environ.get("DATABASE_URL", "").startswith(("postgres://", "postgresql://")),
+                    reason="needs a PostgreSQL DATABASE_URL")
+def test_our_columns_are_only_our_own_schema():
+    """A Supabase project ships with auth.users, which has an email column. Asking whether
+    "users" has "email" without naming a schema answers about a table we never touch -- so the
+    column would not be added to ours, and every login would fail looking for it."""
+    import psycopg
+    from portal.sql import Pool
+    url = os.environ["DATABASE_URL"]
+    with psycopg.connect(url) as c:
+        c.execute("CREATE SCHEMA IF NOT EXISTS auth")
+        c.execute("DROP TABLE IF EXISTS auth.users")
+        c.execute("CREATE TABLE auth.users (id int, email text, encrypted_password text)")
+        c.execute("DROP TABLE IF EXISTS users")
+        c.execute("CREATE TABLE users (username text)")
+        c.commit()
+    try:
+        with Pool(url).connect() as conn:
+            cols = conn.columns("users")
+        assert cols == {"username"}                       # not auth.users's three
+        assert "encrypted_password" not in cols
+    finally:
+        with psycopg.connect(url) as c:
+            c.execute("DROP TABLE IF EXISTS users"); c.execute("DROP SCHEMA IF EXISTS auth CASCADE"); c.commit()
