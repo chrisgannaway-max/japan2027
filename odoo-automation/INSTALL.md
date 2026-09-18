@@ -27,7 +27,7 @@ Odoo, can be tested with no account anywhere.
 **Needs:** Python 3.11 or newer, and `git`. Nothing else is required.
 
 ```bash
-git clone <repo> && cd odoo-automation
+git clone git@github.com:chrisgannaway-max/night-audit-odoo.git && cd night-audit-odoo
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt          # requirements-dev.txt as well, to run the tests
 
@@ -274,7 +274,6 @@ Health check for the host: `GET /health` returns `ok`.
 | Setting | Value |
 |---|---|
 | Language | **Docker** |
-| Root Directory | **`odoo-automation`** — the app is a subdirectory; without this the build finds no Dockerfile |
 | Branch | whichever branch holds the code |
 | Instance Type | Free to try it; **Standard (2 GB)** before anyone relies on it, and required if you want OCR |
 | Health Check Path | `/health` |

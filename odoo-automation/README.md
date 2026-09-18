@@ -78,7 +78,6 @@ whole thing in order — dependencies, the hotels and mappings, testing e-mail a
 PostgreSQL and Supabase Storage, deploying, backups and every setting.
 
 ```bash
-cd odoo-automation
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt        # requirements-dev.txt to run the tests
 cp config/properties.example.yaml config/properties.yaml      # edit property list
