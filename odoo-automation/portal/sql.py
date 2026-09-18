@@ -219,13 +219,21 @@ class Pool:
         # authenticate against it whatever the password is, and the error says only that the
         # password failed -- so somebody changes the host, leaves the user alone, and then spends
         # an evening certain they have mistyped a password.
-        if ("password authentication failed" in low
-                and ".pooler.supabase.com" in self.url
-                and re.search(r"://postgres:", self.url)):
-            return ("\n\nHINT: the pooler needs the project reference in the user name. "
-                    "postgresql://postgres:... has to be postgresql://postgres.<project-ref>:... "
-                    "-- copy the whole Session pooler line from the Supabase dashboard and change "
-                    "only the password.")
+        if "password authentication failed" in low and ".pooler.supabase.com" in self.url:
+            if re.search(r"://postgres:", self.url):
+                return ("\n\nHINT: the pooler needs the project reference in the user name. "
+                        "postgresql://postgres:... has to be "
+                        "postgresql://postgres.<project-ref>:... -- copy the whole Session pooler "
+                        "line from the Supabase dashboard and change only the password.")
+            # The user name already carries the ref.  The pooler splits it into tenant and
+            # database user and reports failures using the database user, so being told the
+            # password failed for "postgres" is what a *correct* user name looks like here.  Say
+            # so, or the next person spends the evening rewriting a user name that was right.
+            return ("\n\nHINT: the user name already carries the project reference, and the "
+                    "pooler reports failures using the database user -- so 'user \"postgres\"' "
+                    "is expected and not the problem. This is the password. Reset it in the "
+                    "Supabase dashboard under Settings, Database, and take one of letters and "
+                    "digits only, or percent-encode any symbols.")
 
         # More than one "@" between the scheme and the path means the password contains one
         # unencoded, which ends the userinfo early and sends a truncated password.

@@ -179,5 +179,9 @@ def test_pooler_without_the_project_ref_is_named_for_what_it_is():
     failed = 'FATAL:  password authentication failed for user "postgres"'
     bad = Pool("postgresql://postgres:pw@aws-0-us-east-2.pooler.supabase.com:5432/postgres")
     assert "project reference in the user name" in bad._hint(failed)
+    # With the ref present the pooler still reports the database user, so the same message means
+    # the opposite thing: the user name is right and the password is wrong.
     good = Pool("postgresql://postgres.przmgvjgvfiqjubugsol:pw@aws-0-us-east-2.pooler.supabase.com:5432/postgres")
-    assert good._hint(failed) == ""                     # correct string: no misleading advice
+    hint = good._hint(failed)
+    assert "is expected and not the problem" in hint and "This is the password" in hint
+    assert "has to be" not in hint                      # never tells them to rewrite a right user name
