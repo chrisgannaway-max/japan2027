@@ -22,6 +22,10 @@ input,select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-ra
 pre{background:var(--code);padding:12px;border-radius:4px;overflow-x:auto;font-size:.82rem;margin:0}
 .msg{white-space:pre-wrap;font-size:.9rem}.err{color:var(--bad)}.small{font-size:.85rem;color:var(--muted)}
 .tablewrap{overflow-x:auto}
+  /* A run that a later upload replaced is history, not a second live entry: readable, but
+     plainly not the one that counts. */
+  tr.superseded td{opacity:.55}
+  tr.superseded td a{text-decoration:line-through}
 </style>
 </head>
 <body>

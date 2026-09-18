@@ -187,3 +187,24 @@ def test_ambiguous_property_name_is_held_not_guessed(props):
     report = "SpringHill Suites By Marriott Oklahoma City Airport West"
     assert match_property(twins, _P("x.pdf"), "", report, "AGILYSYS") is None   # held, not guessed
     assert match_property(props, _P("x.pdf"), "", report, "AGILYSYS") == "OKCAW"  # unambiguous still works
+
+
+def test_re_uploading_a_night_marks_the_first_one_replaced(client):
+    """Uploading the same night twice is safe -- the second supersedes the first -- but the list
+    has to say so, or two identical rows read as two live entries and somebody starts wondering
+    whether it posted twice."""
+    login(client, "okcon", "okcon")
+    for _ in range(2):
+        with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+            r = client.post("/upload", data={"property_code": "OKCON"},
+                            files=[("files", ("OKCON.txt", fh, "text/plain"))])
+    assert r.status_code == 200
+    assert "replaced by a later upload" in r.text          # the first row says what it is
+    assert r.text.count("replaced by a later upload") == 1  # and only the first
+
+    import portal.app as app_module
+    runs = app_module.state.db.recent_runs(10, None)
+    assert len(runs) == 2 and runs[0]["superseded"] == 0 and runs[1]["superseded"] == 1
+    # and only one of them is live for the day, so only one can reach Odoo
+    live = app_module.state.db.runs_for_date("2025-11-10")
+    assert len(live) == 1
