@@ -65,6 +65,63 @@ def test_pep_entry_balances_with_example_mapping(pep):
     assert any(l.name == "Total Closed Folio Net Change" and l.debit == Decimal("315.23") for l in entry.lines)
 
 
+# ------------------------------------------- Hilton PEP, the Garden Inn variant
+# Same report, printed differently: section names stand on their own line instead of sharing
+# the column header, the Room Revenue tables carry an extra "Adjusted Transferred" column that
+# the Charges table does not, "Revenue & Charges" is a recap of tables already printed rather
+# than the heading above them, and the ledgers come as one table instead of three paragraphs.
+@pytest.fixture(scope="module")
+def hgi():
+    return get_parser("PEP").parse(FIXTURES / "pep_final_audit_hgi.txt", "OKCAH")
+
+
+def test_hgi_header_and_detection(hgi):
+    assert detect_pms(read_text(FIXTURES / "pep_final_audit_hgi.txt")) == "PEP"
+    assert hgi.business_date == date(2025, 11, 11)
+    assert hgi.pms_property_id == "OKCAH"          # printed on its own line, not "Hotel ID :"
+    assert hgi.property_name.startswith("Hilton Garden Inn")
+    assert hgi.warnings == []
+
+
+def test_hgi_reads_the_net_today_column_by_position(hgi):
+    d = by_label(hgi)
+    # Counting columns reads the M-T-D figure here, because the column count changes between
+    # tables in the one report.  500.00 and 300.00 are the month to date.
+    assert d["PET FEE (5+ DAYS)"].amount == Decimal("0.00")
+    assert d["PET FEE (1-4 DAYS)"].amount == Decimal("150.00")   # 225.00 actual - 75.00 adjusted
+    assert d["PANTRY"].amount == Decimal("0.00")
+    assert d["MASTER"].amount == Decimal("3538.68") and d["MASTER"].section == "settlement"
+
+
+def test_hgi_wrapped_label_is_not_a_section_heading(hgi):
+    # "LATE CANCEL" / "ROOM  REVENUE" wraps over two lines, and the tail is the name of a
+    # section.  Reading it as one would book the rest of the Charges table at M-T-D.
+    d = by_label(hgi)
+    assert d["LATE CANCEL ROOM REVENUE"].section == "revenue"
+    assert hgi.stats["Charges (section recap)"] == Decimal("1722.97")
+
+
+def test_hgi_totals_and_balance(hgi):
+    assert hgi.total("revenue") == Decimal("14823.92")
+    assert hgi.total("tax") == Decimal("2470.82")
+    assert hgi.total("settlement") == Decimal("12002.00")   # 13,468.40 paid - 1,466.40 direct bill
+    assert hgi.total("ledger") == Decimal("5292.74") == hgi.stats["Ledger Totals Net Change"]
+    # A company billed is not money taken in: it moves to the Direct Bill ledger, which the
+    # ledger table already reports.
+    assert hgi.total("transfer") == Decimal("1466.40")
+    assert (hgi.total("revenue") + hgi.total("tax") - hgi.total("settlement")
+            - hgi.total("ledger")) == 0
+
+
+def test_hgi_skips_the_tables_that_recut_the_same_money(hgi):
+    d = by_label(hgi)
+    for junk in ("CASH DROPS", "CALCULATED DEPOSIT", "IN HOUSE", "SAFE DROPS",
+                 "BEST AVAILABLE RATE", "CONSORTIA", "Revenue & Charges"):
+        assert junk not in d
+    for recap in ("Room Revenue", "Other Room Revenue", "Charges", "Taxes"):
+        assert f"{recap} (section recap)" in hgi.stats
+
+
 # ------------------------------------------------------------------ choiceADVANTAGE
 @pytest.fixture(scope="module")
 def choice():
