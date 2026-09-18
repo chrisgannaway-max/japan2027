@@ -172,11 +172,12 @@ Skip this if the portal will live on one machine with a disk that stays put. Do 
 replaces the container on each deploy, or you ever want two copies running.
 
 ```bash
-pip install "psycopg[binary]"
 export DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
-That is the whole change. Tables are created on first start, and the startup line will say
+That is the whole change -- the driver is in `requirements.txt`, because the moment that variable
+is set it is not optional, and a container that has to be told to install it separately fails on
+its first start with a missing module. Tables are created on first start, and the startup line will say
 `database: PostgreSQL ...` with the password masked. The same test suite passes on both, so
 this is a supported configuration rather than a hopeful one.
 
