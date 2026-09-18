@@ -169,3 +169,15 @@ def test_connection_failures_explain_themselves():
     assert "%40" in at_sign._hint("FATAL: password authentication failed for user")
     clean = Pool("postgresql://postgres:plainpw@db.example.supabase.co:5432/postgres")
     assert clean._hint("FATAL: password authentication failed for user") == ""
+
+
+def test_pooler_without_the_project_ref_is_named_for_what_it_is():
+    """The pooler routes by the project ref in the user name, and rejects plain "postgres" with
+    nothing but "password authentication failed" -- which sends people hunting for a typo in a
+    password that was right all along."""
+    from portal.sql import Pool
+    failed = 'FATAL:  password authentication failed for user "postgres"'
+    bad = Pool("postgresql://postgres:pw@aws-0-us-east-2.pooler.supabase.com:5432/postgres")
+    assert "project reference in the user name" in bad._hint(failed)
+    good = Pool("postgresql://postgres.przmgvjgvfiqjubugsol:pw@aws-0-us-east-2.pooler.supabase.com:5432/postgres")
+    assert good._hint(failed) == ""                     # correct string: no misleading advice

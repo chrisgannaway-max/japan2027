@@ -215,6 +215,18 @@ class Pool:
                     "session pooler string instead: press Connect in the Supabase dashboard and "
                     "take the Session pooler URI -- the user gains the project ref "
                     "(postgres.<ref>) and the host becomes <region>.pooler.supabase.com.")
+        # The pooler routes by the project ref in the user name.  Plain "postgres" cannot
+        # authenticate against it whatever the password is, and the error says only that the
+        # password failed -- so somebody changes the host, leaves the user alone, and then spends
+        # an evening certain they have mistyped a password.
+        if ("password authentication failed" in low
+                and ".pooler.supabase.com" in self.url
+                and re.search(r"://postgres:", self.url)):
+            return ("\n\nHINT: the pooler needs the project reference in the user name. "
+                    "postgresql://postgres:... has to be postgresql://postgres.<project-ref>:... "
+                    "-- copy the whole Session pooler line from the Supabase dashboard and change "
+                    "only the password.")
+
         # More than one "@" between the scheme and the path means the password contains one
         # unencoded, which ends the userinfo early and sends a truncated password.
         authority = self.url.split("://", 1)[-1].split("/", 1)[0]
