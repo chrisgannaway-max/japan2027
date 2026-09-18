@@ -208,3 +208,27 @@ def test_re_uploading_a_night_marks_the_first_one_replaced(client):
     # and only one of them is live for the day, so only one can reach Odoo
     live = app_module.state.db.runs_for_date("2025-11-10")
     assert len(live) == 1
+
+
+def test_a_single_run_downloads_as_csv(client):
+    """The two buttons on a run's page. They were linking at a path that collided with the run
+    page itself, so both answered "2.csv is not an integer" -- and nothing covered them."""
+    login(client, "okcon", "okcon")
+    with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+        client.post("/upload", data={"property_code": "OKCON"},
+                    files=[("files", ("OKCON.txt", fh, "text/plain"))])
+    client.get("/logout")
+    login(client, "admin", "admin")
+
+    page = client.get("/runs/1")
+    assert page.status_code == 200 and "/runs/1/csv?fmt=odoo" in page.text
+
+    odoo = client.get("/runs/1/csv?fmt=odoo")
+    assert odoo.status_code == 200
+    assert odoo.headers["content-disposition"].endswith('PEP-OKCON-2025-11-10-odoo.csv"')
+    lines = odoo.text.strip().splitlines()
+    assert lines[0].split(",") == HEADERS          # the real import layout, not a guess at it
+    assert len(lines) > 1 and "PEP-OKCON-2025-11-10" in odoo.text
+
+    flat = client.get("/runs/1/csv?fmt=flat")
+    assert flat.status_code == 200 and flat.text != odoo.text

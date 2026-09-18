@@ -531,7 +531,10 @@ def export_day(day: str, fmt: str = "odoo", approved: str = "all", again: str = 
                     headers={"Content-Disposition": f'attachment; filename="night-audit-{day}-{fmt}.csv"'})
 
 
-@app.get("/runs/{run_id}.csv")
+# Not "/runs/{run_id}.csv": that is the same single path segment as "/runs/{run_id}", so whichever
+# route is declared first wins and "2.csv" arrives at the HTML page as a run id that will not
+# parse. A separate segment cannot collide, whatever order these end up in.
+@app.get("/runs/{run_id}/csv")
 def export_run(run_id: int, fmt: str = "odoo", user: User = Depends(require_admin)):
     r = state.db.get_run(run_id)
     if not r or r["status"] != "ok":

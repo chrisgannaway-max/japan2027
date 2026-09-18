@@ -18,8 +18,8 @@
   <div class="row">
     {% if run.status == 'ok' and not run.approved_at %}<form method="post" action="/runs/{{ run.id }}/approve"><button class="btn" type="submit">Approve</button></form>{% endif %}
     {% if run.status == 'ok' %}
-      <a class="btn secondary" href="/runs/{{ run.id }}.csv?fmt=odoo">Odoo import CSV</a>
-      <a class="btn secondary" href="/runs/{{ run.id }}.csv?fmt=flat">Flat CSV</a>
+      <a class="btn secondary" href="/runs/{{ run.id }}/csv?fmt=odoo">Odoo import CSV</a>
+      <a class="btn secondary" href="/runs/{{ run.id }}/csv?fmt=flat">Flat CSV</a>
       {% if odoo_enabled and not run.posted_at %}
       <form method="post" action="/runs/{{ run.id }}/post" class="row"><select id="post_now" name="post_now"><option value="no">create as draft in Odoo</option><option value="yes">create and post in Odoo</option></select><button class="btn" type="submit">Send to Odoo</button></form>
       {% endif %}
