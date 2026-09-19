@@ -469,6 +469,37 @@ def run_detail(request: Request, run_id: int, user: User = Depends(require_user)
                   entry_text=format_entry(res.entry) if res.entry else None)
 
 
+@app.get("/runs/{run_id}/file")
+def run_file(run_id: int, n: int = 0, user: User = Depends(require_user)):
+    """The pack itself, back out of wherever it was filed.
+
+    The portal keeps every uploaded file because it is the evidence behind an accounting
+    entry, and until now there was no way to look at one again.  `n` picks the companion for
+    a format that arrives in two halves; it indexes a list of locators the portal wrote
+    itself, so nothing a browser sends ever reaches storage as a path.
+    """
+    import mimetypes
+
+    r = state.db.get_run(run_id)
+    if not r:
+        raise HTTPException(404)
+    if not user.is_admin and r["property_code"] not in user.properties:
+        raise HTTPException(403)
+    res = RunResult.from_json(r["result_json"])
+    locators = [r["stored_path"]] + list(res.companions or [])
+    if not 0 <= n < len(locators):
+        raise HTTPException(404)
+    name = r["file_name"] if n == 0 else Path(locators[n]).name
+    try:
+        body = state.storage.read(locators[n])
+    except storage.StorageError as e:
+        raise HTTPException(503, f"The file could not be fetched: {e}")
+    except (FileNotFoundError, OSError):
+        raise HTTPException(404, "That file is no longer in storage.")
+    return Response(body, media_type=mimetypes.guess_type(name)[0] or "application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 @app.post("/runs/{run_id}/approve")
 def approve(run_id: int, user: User = Depends(require_admin)):
     r = state.db.get_run(run_id)

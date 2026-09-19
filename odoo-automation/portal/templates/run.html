@@ -9,7 +9,7 @@
     <span><b>Property</b> {{ res.property_code or '—' }} {{ res.property_name }}</span>
     <span><b>PMS</b> {{ res.pms or '—' }}</span>
     <span><b>Business date</b> {{ res.business_date or '—' }}</span>
-    <span><b>File</b> {{ run.file_name }}{% for c in res.companions %} + {{ c.split('/')[-1] }}{% endfor %}</span>
+    <span><b>File</b> <a href="/runs/{{ run.id }}/file">{{ run.file_name }}</a>{% for c in res.companions %} + <a href="/runs/{{ run.id }}/file?n={{ loop.index }}">{{ c.split('/')[-1] }}</a>{% endfor %}</span>
     <span><b>Uploaded</b> {{ run.created_at | when }} by {{ run.uploaded_by }}</span>
   </div>
   <p class="msg {% if run.status != 'ok' %}err{% endif %}">{{ res.message }}</p>

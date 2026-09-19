@@ -5,6 +5,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def first_run_id(html: str) -> int:
+    """The first run number a page links to, whatever the link goes on to say.
+
+    Pages link to /runs/3, /runs/3/file and /runs/3/csv; a test wants the 3.
+    """
+    import re as _re
+    m = _re.search(r"/runs/(\d+)", html)
+    assert m, "no /runs/<id> link on the page"
+    return int(m.group(1))
+
+
 import os
 
 import pytest

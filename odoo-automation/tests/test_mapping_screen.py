@@ -3,7 +3,7 @@ import importlib
 
 import pytest
 
-from conftest import FIXTURES
+from conftest import FIXTURES, first_run_id
 from pms_to_odoo.mapping import GLMapping
 from pms_to_odoo.mapping_edit import escape_label, insert_rules, rule_for, suggest_account
 
@@ -116,7 +116,7 @@ def test_map_missing_lines_then_rerun(client):
     with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
         r = c.post("/upload", data={"property_code": "NEW1"}, files=[("files", ("audit.txt", fh, "text/plain"))])
     assert r.status_code == 200 and "Needs mapping" in r.text
-    run_id = int(r.text.split("/runs/")[1].split('"')[0])
+    run_id = first_run_id(r.text)
     # the run page offers the mapping screen
     assert "Map the missing lines" in c.get(f"/runs/{run_id}").text
     page = c.get(f"/admin/mapping/{run_id}").text
@@ -142,7 +142,7 @@ def test_ignore_writes_an_ignore_pattern(client):
     load_accounts(c)
     with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
         r = c.post("/upload", data={"property_code": "NEW1"}, files=[("files", ("audit.txt", fh, "text/plain"))])
-    run_id = int(r.text.split("/runs/")[1].split('"')[0])
+    run_id = first_run_id(r.text)
     res = app_module.RunResult.from_json(app_module.state.db.get_run(run_id)["result_json"])
     form = {f"account_{i}": "__ignore__" for i in range(len(res.unmapped))}
     assert c.post(f"/admin/mapping/{run_id}", data=form).status_code == 303

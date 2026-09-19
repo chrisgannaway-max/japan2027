@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import FIXTURES
+from conftest import FIXTURES, first_run_id
 from pms_to_odoo.invoices.sniff import invoice_score, looks_like_invoice
 from pms_to_odoo.parsers.base import read_text
 from pms_to_odoo.pipeline import load_properties, process_file
@@ -95,7 +95,7 @@ def test_invoice_on_the_night_audit_page_offers_one_click_move(client):
                files=[("files", ("acme.txt", INV.read_bytes(), "text/plain"))])
     assert r.status_code == 200
     assert "Looks like an invoice" in r.text and "Send it to Invoices" in r.text
-    run_id = int(r.text.split("/runs/")[1].split('"')[0])
+    run_id = first_run_id(r.text)
     r2 = c.post(f"/runs/{run_id}/to-invoice")
     assert r2.status_code == 303 and "/invoices/" in r2.headers["location"]
     page = c.get(r2.headers["location"]).text
@@ -112,7 +112,7 @@ def test_another_manager_cannot_move_someone_elses_upload(client):
     c, app_module, _ = client
     r = c.post("/upload", data={"property_code": "OKCON"},
                files=[("files", ("acme.txt", INV.read_bytes(), "text/plain"))])
-    run_id = int(r.text.split("/runs/")[1].split('"')[0])
+    run_id = first_run_id(r.text)
     c.get("/logout")
     c.post("/login", data={"username": "txi47", "password": "txi47"})
     assert c.post(f"/runs/{run_id}/to-invoice").status_code == 403

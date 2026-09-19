@@ -21,9 +21,9 @@
     <thead><tr><th>File</th><th>Property</th><th>Business date</th><th>Status</th><th>Details</th></tr></thead>
     <tbody>
     {% for run_id, r in results %}
-      <tr><td>{{ r.file_name }}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
+      <tr><td>{% if run_id %}<a href="/runs/{{ run_id }}/file" title="Download the file as it was uploaded">{{ r.file_name }}</a>{% else %}{{ r.file_name }}{% endif %}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
           <td>{{ pill(r.status) }}</td>
-          <td class="msg">{{ r.message }}{% if run_id %} <a href="/runs/{{ run_id }}">view</a>{% endif %}
+          <td class="msg">{{ r.message }}{% if run_id %} <a href="/runs/{{ run_id }}">Results</a>{% endif %}
             {% if r.status == 'looks_like_invoice' and run_id and invoices_on %}
               <form method="post" action="/runs/{{ run_id }}/to-invoice" style="margin-top:6px">
                 <button class="btn" type="submit">Send it to Invoices</button></form>
@@ -35,12 +35,13 @@
 <div class="card">
   <h2>Recent uploads</h2>
   <div class="tablewrap"><table>
-    <thead><tr><th>When</th><th>Property</th><th>Business date</th><th>File</th><th>Status</th><th>By</th></tr></thead>
+    <thead><tr><th>When</th><th>Property</th><th>Business date</th><th>File</th><th>Status</th><th>By</th><th>Details</th></tr></thead>
     <tbody>
     {% for r in runs %}
-      <tr{% if r.superseded %} class="superseded"{% endif %}><td>{{ r.created_at | when_short }}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
-          <td><a href="/runs/{{ r.id }}">{{ r.file_name }}</a></td><td>{{ pill(r.status) }}{% if r.superseded %} <span class="pill muted">replaced by a later upload</span>{% elif r.posted_at %} <span class="pill ok">posted</span>{% elif r.approved_at %} <span class="pill ok">approved</span>{% endif %}</td><td>{{ r.uploaded_by }}</td></tr>
-    {% else %}<tr><td colspan="6" class="small">Nothing uploaded yet.</td></tr>{% endfor %}
+      <tr{% if r.superseded %} class="superseded"{% endif %}><td class="when">{{ r.created_at | when_short }}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
+          <td><a href="/runs/{{ r.id }}/file" title="Download the file as it was uploaded">{{ r.file_name }}</a></td><td>{{ pill(r.status) }}{% if r.superseded %} <span class="pill muted">replaced by a later upload</span>{% elif r.posted_at %} <span class="pill ok">posted</span>{% elif r.approved_at %} <span class="pill ok">approved</span>{% endif %}</td><td>{{ r.uploaded_by }}</td>
+          <td><a class="btn secondary tight" href="/runs/{{ r.id }}">Results</a></td></tr>
+    {% else %}<tr><td colspan="7" class="small">Nothing uploaded yet.</td></tr>{% endfor %}
     </tbody></table></div>
 </div>
 {% endblock %}

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import FIXTURES
+from conftest import FIXTURES, first_run_id
 from pms_to_odoo.export import HEADERS, entries_to_flat_csv, entries_to_odoo_csv
 from pms_to_odoo.pipeline import load_properties, match_property, process_file
 
@@ -110,7 +110,7 @@ def test_manager_upload_admin_review_and_export(client):
     login(client, "admin", "admin")
     r = client.get("/?day=2025-11-10")
     assert r.status_code == 200 and "OKCON" in r.text and "Balanced, ready to post" in r.text and "Not uploaded" in r.text
-    run_id = int(r.text.split('/runs/')[1].split('"')[0])
+    run_id = first_run_id(r.text)
     r = client.get(f"/runs/{run_id}")
     assert r.status_code == 200 and "Journal entry PEP-OKCON-2025-11-10" in r.text and "Approve" in r.text
     assert client.post(f"/runs/{run_id}/approve").status_code == 303
@@ -139,6 +139,32 @@ def test_the_upload_list_shows_the_time_in_oklahoma(client):
     assert "T" + clock.stamp()[11:13] not in body        # not the raw UTC ISO string
 
 
+def test_the_file_name_downloads_the_file_and_results_is_its_own_button(client):
+    """The pack is the evidence behind the entry, so it has to be gettable again -- and a link
+    on a file name should give you the file, not a page about it."""
+    login(client, "okcon", "okcon")
+    original = (FIXTURES / "pep_final_audit.txt").read_bytes()
+    with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+        client.post("/upload", data={"property_code": "OKCON"},
+                    files=[("files", ("OKCON_final_audit.txt", fh, "text/plain"))])
+    body = client.get("/upload").text
+    run_id = first_run_id(body)
+    assert f'href="/runs/{run_id}/file"' in body and ">OKCON_final_audit.txt</a>" in body
+    assert f'href="/runs/{run_id}">Results</a>' in body
+
+    r = client.get(f"/runs/{run_id}/file")
+    assert r.status_code == 200 and r.content == original
+    assert 'filename="OKCON_final_audit.txt"' in r.headers["content-disposition"]
+    assert client.get(f"/runs/{run_id}/file?n=1").status_code == 404      # no companion
+    assert client.get(f"/runs/{run_id}/file?n=-1").status_code == 404
+
+    # Another hotel's pack is not downloadable by asking for its run number.
+    client.get("/logout")
+    login(client, "txi47", "txi47")
+    assert client.get(f"/runs/{run_id}/file").status_code == 403
+    assert client.get("/runs/99999/file").status_code == 404
+
+
 def test_synxis_pair_upload_merges(client):
     login(client, "lq89051", "lq89051")
     files = [("files", (name, (FIXTURES / "synxis" / name).read_bytes(), "text/plain"))
@@ -148,6 +174,14 @@ def test_synxis_pair_upload_merges(client):
     result_section = r.text.split("<h2>Result</h2>")[1].split("<h2>Recent uploads</h2>")[0]
     assert result_section.count("<tr><td>") == 1                 # the pair became one run
     assert "Balanced, ready to post" in result_section and "5,903.42" in r.text
+    # Both halves are downloadable: the entry rests on the pair, not on one of them.
+    run_id = first_run_id(result_section)
+    first, second = client.get(f"/runs/{run_id}/file"), client.get(f"/runs/{run_id}/file?n=1")
+    assert first.status_code == 200 and second.status_code == 200
+    got = {first.content, second.content}
+    assert got == {(FIXTURES / "synxis" / n).read_bytes()
+                   for n in ("transaction_totals_summary.txt", "hotel_ledger_compare.txt")}
+    assert client.get(f"/runs/{run_id}/file?n=2").status_code == 404
     client.get("/logout")
     login(client, "admin", "admin")
     r = client.get("/?day=2025-11-11")

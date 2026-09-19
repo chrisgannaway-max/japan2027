@@ -150,6 +150,24 @@ def test_upload_lands_in_the_bucket_and_reprocesses(client, fake, tmp_path):
     assert again["status"] == "ok" and again["stored_path"] == run["stored_path"]
 
 
+def test_downloading_the_pack_reads_the_bucket_and_says_so_when_it_cannot(client, fake, tmp_path):
+    login(client, "okcon", "okcon")
+    original = (FIXTURES / "pep_final_audit.txt").read_bytes()
+    with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+        client.post("/upload", data={"property_code": "OKCON"},
+                    files=[("files", ("OKCON_final_audit.txt", fh, "text/plain"))])
+    import portal.app as app_module
+    app_module.state.storage._cache.clear()               # force a real download
+    r = client.get("/runs/1/file")
+    assert r.status_code == 200 and r.content == original
+
+    # A bucket that has lost the object is a thing to be told about, not a traceback.
+    app_module.state.storage._cache.clear()
+    fake.objects.clear()
+    r = client.get("/runs/1/file")
+    assert r.status_code == 503 and "could not be fetched" in r.text
+
+
 def test_invoice_upload_and_refusal_use_the_bucket(client, fake):
     login(client, "okcon", "okcon")
     with open(FIXTURES / "invoices" / "acme_linen_INV-1001.txt", "rb") as fh:
