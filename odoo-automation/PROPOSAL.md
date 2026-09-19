@@ -56,9 +56,9 @@ double entry stops before the mapping for every property is signed off.
 
 ## 4. Vendor invoices — out of scope
 
-Odoo digitizes vendor bills itself: e-mail them to an alias and they are OCR'd and created as
-drafts, billed per document in IAP credits. That is the right place for them, and this project
-does not touch them.
+Champion will be using Odoo for vendor bills — confirmed — so this project does not touch
+them. Odoo digitizes them itself: e-mail them to an alias and they are OCR'd and created as
+drafts, billed per document in IAP credits.
 
 The portal ships with the invoice side switched off — no pages, no navigation link, no code
 running. It stays in the tree rather than being deleted because it is already written and

@@ -296,9 +296,12 @@ whether it was written by hand or through the portal.
 
 ## Vendor invoices — off, and not part of this project
 
-**Odoo digitizes vendor bills itself**, so nothing here is used for them. `INVOICES` is `off`
-by default: the pages are not served, the link is not in the navigation, and no invoice code
-runs. A deployment behaves as if this section did not exist.
+**Champion use Odoo for vendor bills**, confirmed, so nothing here is used for them.
+`INVOICES` is `off` by default: the pages are not served, the link is not in the navigation,
+and no invoice code runs. Its two extra dependencies are not installed either — `pytesseract`
+and `pillow` live in `requirements-invoices.txt`, and the Docker image leaves Tesseract out
+unless built with `--build-arg INVOICE_OCR=1`. A deployment behaves as if this section did
+not exist, and does not carry or patch anything for it.
 
 It is still in the tree because it is written and tested, and because Odoo's digitization is
 billed per document — if that ever stops being the right trade, this is here rather than

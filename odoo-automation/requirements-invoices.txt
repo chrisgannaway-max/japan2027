@@ -1,0 +1,8 @@
+# Only for the vendor-invoice side, which is off (INVOICES=off) because Champion use Odoo's
+# own bill digitization.  Reading a *scanned* invoice needs Tesseract; text PDFs never did.
+#
+#   pip install -r requirements-invoices.txt        # plus: apt-get install tesseract-ocr
+#
+# The Dockerfile installs both when built with --build-arg INVOICE_OCR=1.
+pytesseract>=0.3
+pillow>=10

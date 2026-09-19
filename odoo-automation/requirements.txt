@@ -9,11 +9,11 @@ uvicorn[standard]>=0.27
 jinja2>=3.1
 python-multipart>=0.0.9  # file uploads
 httpx>=0.27
-pytesseract>=0.3         # OCR for scanned invoices; needs the tesseract binary too
-pillow>=10
 psycopg[binary]>=3.1     # PostgreSQL, the moment DATABASE_URL is set
 pyotp>=2.9               # two-step sign-in
 qrcode>=7.4
 
-# Optional. The AI invoice reader; everything works without it (INVOICE_READER=rules).
-#   pip install anthropic
+# Not here on purpose: pytesseract and pillow live in requirements-invoices.txt, and the
+# AI invoice reader needs `pip install anthropic`.  The vendor-invoice side is off -- Champion
+# use Odoo's own bill digitization -- and a deployment should not carry, build or patch a
+# dependency for something it never runs.

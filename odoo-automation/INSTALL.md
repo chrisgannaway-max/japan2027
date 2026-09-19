@@ -31,8 +31,9 @@ git clone git@github.com:chrisgannaway-max/night-audit-odoo.git && cd night-audi
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt          # requirements-dev.txt as well, to run the tests
 
-# Optional: OCR, for invoices that are photographs or scans with no text layer.
-# Skip it and every other feature still works; scanned invoices are simply typed in by hand.
+# Only if you ever turn the dormant invoice side on, and only for invoices that are
+# photographs or scans. Nothing else needs it, and the Docker image leaves it out unless
+# built with --build-arg INVOICE_OCR=1.
 sudo apt-get install tesseract-ocr       # macOS: brew install tesseract
 ```
 
@@ -588,7 +589,7 @@ and the real connection is the only thing left.
 | `REPORT_AT` | unset | `06:30` to fix when the morning list goes out; unset means after the latest property cut-off. Also settable on `/admin` |
 | `ODOO_AUTOPOST` | `no` | `yes` posts entries in Odoo on arrival instead of leaving drafts; also switchable on `/admin` unless pinned here |
 | `INTAKE_TOKEN` | unset | shared secret for the inbound-mail webhook; **unset means the route is off** |
-| `INVOICE_READER` | rules | `claude` to use the AI invoice reader |
+| `INVOICE_READER` | rules | `claude` to use the AI invoice reader; only matters with `INVOICES=on` |
 | `ANTHROPIC_API_KEY` | — | only for `INVOICE_READER=claude`; night audit never uses it |
 
 Secrets — `PORTAL_SECRET`, `SMTP_PASSWORD`, `ODOO_API_KEY`, `SUPABASE_SERVICE_KEY`,
