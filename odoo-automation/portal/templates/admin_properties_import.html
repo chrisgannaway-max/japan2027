@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% block title %}Import hotels{% endblock %}
+{% block body %}
+<h1>Import hotels</h1>
+
+{% if errors %}
+<div class="card">
+  <p><span class="pill bad">Nothing was imported</span> A single bad row stops the whole file, so
+    you are never left wondering which nine of fifteen hotels exist. Fix these and upload it again.</p>
+  <ul>{% for e in errors %}<li class="msg err">{{ e }}</li>{% endfor %}</ul>
+</div>
+{% else %}
+<div class="card">
+  <p><span class="pill ok">{{ rows|length }} hotel{{ '' if rows|length == 1 else 's' }}</span>
+    {{ rows | rejectattr('exists') | list | length }} added,
+    {{ rows | selectattr('exists') | list | length }} updated. Any GL mapping already on an
+    updated hotel was left alone.</p>
+</div>
+<div class="card">
+  <div class="tablewrap"><table>
+    <thead><tr><th>Code</th><th>Name</th><th>PMS</th><th>Report id / name</th><th>Journal</th><th>Due by</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="/admin/properties/{{ r.code }}"><b>{{ r.code }}</b></a></td>
+        <td class="small">{{ r.get('name') or '—' }}</td>
+        <td>{{ r.pms }}</td>
+        <td class="small">{{ r.get('pms_property_id') or r.get('pms_property_name') or '—' }}</td>
+        <td class="small">{{ r.get('journal') or '—' }}</td>
+        <td class="small">{{ r.get('due_by') or '06:00' }}</td>
+        <td>{% if r.exists %}<span class="pill muted">updated</span>{% else %}<span class="pill ok">new</span>{% endif %}
+            {% if not r.enabled %} <span class="pill muted">disabled</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+</div>
+{% endif %}
+
+{% if warnings %}
+<div class="card">
+  <h2>Worth a look</h2>
+  <ul>{% for w in warnings %}<li class="small">{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+<p><a class="btn" href="/admin">Back to settings</a></p>
+{% endblock %}

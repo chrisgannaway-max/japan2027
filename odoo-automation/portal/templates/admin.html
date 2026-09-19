@@ -71,10 +71,20 @@
 </div>
 <div class="card">
   <div class="row" style="justify-content:space-between"><h2>Properties</h2>{% if store_mode == 'db' %}<a class="btn" href="/admin/properties/new">Add property</a>{% endif %}</div>
+  {% if store_mode == 'db' %}
+  <p class="small">Or bring the whole portfolio in at once. Fill in the template &mdash; code, PMS,
+    and the id or name as the report prints it &mdash; and upload it. A code that already exists is
+    updated, and its GL mapping is left alone.</p>
+  <form method="post" action="/admin/import/hotels" enctype="multipart/form-data" class="row">
+    <a class="btn secondary" href="/admin/import/hotels.csv">Download the template</a>
+    <label>Filled-in file <input id="props_file" type="file" name="file" accept=".csv,.txt" required></label>
+    <button class="btn" type="submit">Import hotels</button>
+  </form>
+  {% endif %}
   <div class="tablewrap"><table>
-    <thead><tr><th>Code</th><th>Name</th><th>PMS</th><th>Report id / name</th><th>Odoo company</th><th>Analytic</th><th>Journal</th><th>Enabled</th><th></th></tr></thead>
+    <thead><tr><th>Code</th><th>Name</th><th>PMS</th><th>Report id / name</th><th>Odoo company</th><th>Analytic</th><th>Journal</th><th>Due by</th><th>Enabled</th><th></th></tr></thead>
     <tbody>{% for p in properties %}
-      <tr><td><b>{{ p.code }}</b></td><td>{{ p.name }}</td><td>{{ p.pms }}</td><td>{{ p.pms_property_id }} {{ p.pms_property_name }}</td><td>{{ p.company }}</td><td>{{ p.analytic }}</td><td>{{ p.journal }}</td><td>{{ 'yes' if p.enabled else 'no' }}</td>
+      <tr><td><b>{{ p.code }}</b></td><td>{{ p.name }}</td><td>{{ p.pms }}</td><td>{{ p.pms_property_id }} {{ p.pms_property_name }}</td><td>{{ p.company }}</td><td>{{ p.analytic }}</td><td>{{ p.journal }}</td><td>{{ p.due_by or '06:00' }}</td><td>{{ 'yes' if p.enabled else 'no' }}</td>
           <td>{% if store_mode == 'db' %}<a href="/admin/properties/{{ p.code }}">edit</a>{% endif %}</td></tr>
     {% endfor %}</tbody></table></div>
 </div>
@@ -91,8 +101,8 @@
   <p class="small">Seven hotels means seven managers. Fill in the template &mdash; username, role,
     properties, e-mail &mdash; and each person gets a link to choose their own password. There is no
     password column on purpose: a file of them ends up in somebody's Downloads.</p>
-  <form method="post" action="/admin/users/import" enctype="multipart/form-data" class="row">
-    <a class="btn secondary" href="/admin/users/template.csv">Download the template</a>
+  <form method="post" action="/admin/import/logins" enctype="multipart/form-data" class="row">
+    <a class="btn secondary" href="/admin/import/logins.csv">Download the template</a>
     <label>Filled-in file <input id="users_file" type="file" name="file" accept=".csv,.txt" required></label>
     <label><input type="checkbox" name="send" value="yes" checked> e-mail each person their link</label>
     <button class="btn" type="submit">Import</button>

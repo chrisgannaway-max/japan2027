@@ -127,13 +127,13 @@ def make(tmp_path, monkeypatch, **env):
 
 
 def upload(c, text):
-    return c.post("/admin/users/import", data={"send": "no"},
+    return c.post("/admin/import/logins", data={"send": "no"},
                   files=[("file", ("logins.csv", text.encode(), "text/csv"))])
 
 
 def test_the_template_is_offered_with_this_deployments_own_codes(tmp_path, monkeypatch):
     c, app_module = make(tmp_path, monkeypatch)
-    r = c.get("/admin/users/template.csv")
+    r = c.get("/admin/import/logins.csv")
     assert r.status_code == 200 and "logins.csv" in r.headers["content-disposition"]
     assert r.text.splitlines()[0] == "username,role,properties,email,enabled"
     assert sorted(app_module.state.props)[0] in r.text
@@ -203,7 +203,7 @@ def test_the_links_are_e_mailed_when_there_is_a_mail_server(tmp_path, monkeypatc
     monkeypatch.setattr(mail, "configured", lambda: True)
     monkeypatch.setattr(mail, "send_reporting",
                         lambda to, s, b: (sent.append((to, s, b)), (True, ""))[1])
-    r = c.post("/admin/users/import", data={"send": "yes"},
+    r = c.post("/admin/import/logins", data={"send": "yes"},
                files=[("file", ("logins.csv",
                                 head("okcon.gm,manager,OKCON,gm@champion.example,yes").encode(),
                                 "text/csv"))])
@@ -226,4 +226,4 @@ def test_a_manager_cannot_import_logins(tmp_path, monkeypatch):
     c.get("/logout")
     c.post("/login", data={"username": "okcon", "password": "okcon"})
     assert upload(c, head("gm,manager,OKCON,gm@x.com,yes")).status_code in (303, 403)
-    assert c.get("/admin/users/template.csv").status_code in (303, 403)
+    assert c.get("/admin/import/logins.csv").status_code in (303, 403)

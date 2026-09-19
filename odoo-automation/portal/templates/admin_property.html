@@ -13,6 +13,7 @@
     <label>Odoo company <input id="p_company" name="company" value="{{ prop.company }}"></label>
     <label>Analytic account <input id="p_analytic" name="analytic" value="{{ prop.analytic }}"></label>
     <label>Journal code <input id="p_journal" name="journal" value="{{ prop.journal }}" placeholder="NA"></label>
+    <label>Due by (this hotel's cut-off) <input id="p_due_by" name="due_by" value="{{ prop.due_by }}" placeholder="06:00"></label>
     <label><input type="checkbox" id="p_enabled" name="enabled" value="1" {% if prop.enabled %}checked{% endif %}> enabled</label>
     <label style="grid-column:1/-1">GL mapping (YAML, same format as config/gl_mapping/*.yaml)
       <textarea id="p_mapping" name="mapping_yaml" rows="22" style="width:100%;font-family:ui-monospace,monospace;font-size:.85rem">{{ prop.mapping_yaml }}</textarea></label>

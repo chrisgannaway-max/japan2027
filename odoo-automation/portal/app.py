@@ -39,7 +39,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
                     new_totp_secret, totp_qr_svg, totp_uri, unusable_password_hash, verify_totp)
-from . import clock, daily, intake, poster, scheduler, storage, users_import
+from . import clock, daily, intake, poster, properties_import, scheduler, storage, users_import
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -1120,8 +1120,43 @@ async def mapping_save(request: Request, run_id: int, user: User = Depends(requi
     return RedirectResponse(f"/runs/{new_id}" if res2.status == "ok" else f"/admin/mapping/{new_id}", status_code=303)
 
 
+# ------------------------------------------------------------------ hotels and logins, from a file
+# Under /admin/import/ rather than beside the thing they create: /admin/properties/{code} would
+# read "template.csv" as the code of a hotel, and answer 404 about a route that exists.
+@app.get("/admin/import/hotels.csv")
+def properties_template(user: User = Depends(require_admin)):
+    return Response(properties_import.template(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="hotels.csv"'})
+
+
+@app.post("/admin/import/hotels", response_class=HTMLResponse)
+async def properties_import_csv(request: Request, user: User = Depends(require_admin),
+                                file: UploadFile = File(...)):
+    """Add the hotels in one go.  Nothing is written unless every row is good."""
+    store = require_db_store()
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")            # a spreadsheet saved on a Windows machine
+    parsed = properties_import.parse(text, existing_codes=store.properties(include_disabled=True))
+    if not parsed.ok:
+        return render(request, "admin_properties_import.html", errors=parsed.errors,
+                      warnings=parsed.warnings, rows=[])
+    for row in parsed.rows:
+        try:
+            store.save_property(**row.fields)
+        except ValueError as e:                 # a mapping that no longer parses, say
+            return render(request, "admin_properties_import.html", rows=[], warnings=[],
+                          errors=[f"Line {row.line}: {e}. Nothing was imported."])
+    state.reload_config()
+    print(f"[properties] {user.username} imported {len(parsed.rows)} hotel(s) from {file.filename}")
+    return render(request, "admin_properties_import.html", errors=[], warnings=parsed.warnings,
+                  rows=parsed.rows)
+
+
 # ------------------------------------------------------------------ logins, from a file
-@app.get("/admin/users/template.csv")
+@app.get("/admin/import/logins.csv")
 def users_template(user: User = Depends(require_admin)):
     """The file to fill in, carrying this deployment's own property codes in the examples."""
     body = users_import.template(sorted(state.props))
@@ -1129,7 +1164,7 @@ def users_template(user: User = Depends(require_admin)):
                     headers={"Content-Disposition": 'attachment; filename="logins.csv"'})
 
 
-@app.post("/admin/users/import", response_class=HTMLResponse)
+@app.post("/admin/import/logins", response_class=HTMLResponse)
 async def users_import_csv(request: Request, user: User = Depends(require_admin),
                            file: UploadFile = File(...), send: str = Form("yes")):
     """Create the logins in one go, and give each person a link to choose their own password.

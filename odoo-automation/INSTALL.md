@@ -293,6 +293,34 @@ site being broken and go back to the spreadsheet.
 
 ---
 
+### Adding the hotels from a file
+
+A portfolio arrives as a list, and filling in the same form fifteen times is where a wrong PMS
+or a mistyped report id slips in — neither of which announces itself until a pack arrives at six
+in the morning and lands nowhere. On `/admin`, under **Properties**, download the template:
+
+| Column | Required | What goes in it |
+|---|---|---|
+| `code` | yes | Short, and what goes in the journal reference: `OKCON`, `TXI47`. Letters, digits, dot, dash, underscore. |
+| `pms` | yes | `PEP`, `CHOICEADV`, `HOTELKEY`, `OPERA`, `AGILYSYS`, `SYNXIS` or `GENERIC` — **or just the brand**: Hilton, Choice, IHG, Marriott, Wyndham all resolve to the right reader. |
+| `name`, `brand` | no | For the screen. |
+| `pms_property_id` | see below | The id the report prints — `Hotel ID : OKCON`. |
+| `pms_property_name` | see below | The hotel name as the report prints it, for the systems that print no id (Opera, Agilysys). |
+| `company`, `analytic`, `journal` | no | Odoo. Fill these once the client's chart of accounts exists. |
+| `due_by` | no | This hotel's own cut-off, `05:30`. Blank means 06:00. |
+| `enabled` | no | `yes` or `no`. Blank means yes. |
+
+One of `pms_property_id` or `pms_property_name` is what lets a pack arriving by e-mail find its
+hotel on its own. A row with neither is imported and flagged, not refused — the hotel can still
+be chosen by hand on the upload page until you have seen a real report from it.
+
+**A code that already exists is an update, and a narrow file updates only what it names.** A file
+of `code,pms,name` changes those three and leaves the Odoo company, the analytic account and the
+GL mapping exactly as they were. The mapping is never in this file: it is a page of YAML per
+hotel and belongs on the property's own screen or in the worksheet import.
+
+As with the logins, **nothing is written unless every row is good**.
+
 ### Adding the logins from a file
 
 Seven hotels means seven managers plus whoever is in the office, and typing them in one at a

@@ -27,11 +27,12 @@ from .sql import Pool, database_url
 from .auth import hash_password
 
 PROPERTY_COLUMNS = ("code", "name", "brand", "pms", "pms_property_id", "pms_property_name", "company", "analytic",
-                    "journal", "mapping_yaml", "enabled")
+                    "journal", "due_by", "mapping_yaml", "enabled")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS properties (
     code TEXT PRIMARY KEY, name TEXT, brand TEXT, pms TEXT NOT NULL, pms_property_id TEXT, pms_property_name TEXT,
-    company TEXT, analytic TEXT, journal TEXT, mapping_yaml TEXT, enabled INTEGER DEFAULT 1, updated_at TEXT
+    company TEXT, analytic TEXT, journal TEXT, due_by TEXT DEFAULT '', mapping_yaml TEXT,
+    enabled INTEGER DEFAULT 1, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, role TEXT NOT NULL, properties TEXT DEFAULT '',
@@ -60,6 +61,9 @@ class ConfigStore:
             for col, decl in (("email", "TEXT DEFAULT ''"), ("totp_secret", "TEXT DEFAULT ''"),
                               ("mfa_enabled", "INTEGER DEFAULT 0")):
                 c.add_column_if_missing("users", col, decl)   # databases created before MFA existed
+            # A per-property cut-off was readable from the YAML config and had nowhere to live
+            # in the database, so the deployments that matter could not set one.
+            c.add_column_if_missing("properties", "due_by", "TEXT DEFAULT ''")
 
     def _conn(self):
         return self.pool.connect()
@@ -84,22 +88,30 @@ class ConfigStore:
         return {k: r[k] for k in PROPERTY_COLUMNS} if r else None
 
     def save_property(self, **fields) -> None:
+        """Insert or update.  A field the caller does not mention keeps the value it had.
+
+        The difference between "not mentioned" and "empty" matters most for the mapping: an
+        import that carries codes and names must not wipe the rules somebody spent an afternoon
+        on, while a cleared textarea on the form still means clear it.
+        """
         code = fields["code"].strip()
         if not code or not fields.get("pms"):
             raise ValueError("code and pms are required")
-        mapping_yaml = fields.get("mapping_yaml") or ""
-        if mapping_yaml.strip():
-            self._validate_mapping(mapping_yaml)
-        vals = {k: (fields.get(k) or "") for k in PROPERTY_COLUMNS if k not in ("enabled",)}
+        existing = self.get_property(code) or {}
+        vals = {k: (fields[k] or "" if k in fields else existing.get(k) or "")
+                for k in PROPERTY_COLUMNS if k != "enabled"}
+        if vals["mapping_yaml"].strip():
+            self._validate_mapping(vals["mapping_yaml"])
         vals["code"] = code
         vals["pms"] = str(vals["pms"]).upper()
-        vals["enabled"] = 1 if str(fields.get("enabled", "1")) in ("1", "on", "true", "True") else 0
+        enabled = fields.get("enabled", existing.get("enabled", 1))
+        vals["enabled"] = 1 if str(enabled) in ("1", "on", "true", "True", "yes") else 0
         vals["updated_at"] = clock.stamp()
         cols = ", ".join(vals)
         with self._conn() as c:
             c.execute(f"INSERT INTO properties({cols}) VALUES({', '.join('?' * len(vals))}) ON CONFLICT(code) DO UPDATE SET "
                       + ", ".join(f"{k}=excluded.{k}" for k in vals if k != "code"), tuple(vals.values()))
-        self._materialise(code, mapping_yaml)
+        self._materialise(code, vals["mapping_yaml"])
 
     def delete_property(self, code: str) -> None:
         with self._conn() as c:
