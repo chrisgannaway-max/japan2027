@@ -5,7 +5,13 @@ import itertools
 
 
 class FakeTransport:
-    def __init__(self):
+    #: which Odoo this is pretending to be.  17+ tags a line with analytic_distribution,
+    #: 16 and earlier with analytic_account_id, and a server without the analytic module
+    #: has neither -- all three are real deployments somebody might point us at.
+    ANALYTIC = {"modern": "analytic_distribution", "legacy": "analytic_account_id", "none": ""}
+
+    def __init__(self, analytic: str = "modern"):
+        self.analytic = self.ANALYTIC[analytic]
         self.ids = itertools.count(100)
         self.calls: list[tuple] = []
         self.records: dict[str, list[dict]] = {
@@ -25,6 +31,11 @@ class FakeTransport:
 
     def call(self, model, method, ids=None, context=None, **kw):
         self.calls.append((model, method, ids, kw))
+        if method == "fields_get":
+            base = {"account_id", "name", "debit", "credit", "partner_id", "move_id"}
+            if model == "account.move.line" and self.analytic:
+                base.add(self.analytic)
+            return {f: {"type": "char"} for f in base}
         if method == "search_read":
             rows = [r for r in self.records.get(model, []) if self._match(r, kw.get("domain", []))]
             return rows[: kw["limit"]] if kw.get("limit") else rows

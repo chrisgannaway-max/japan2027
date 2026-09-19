@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block title %}Odoo check{% endblock %}
+{% block body %}
+<h1>Odoo check</h1>
+<div class="card">
+  <p><span class="pill {{ 'ok' if check.ok else 'bad' }}">{{ 'Ready' if check.ok else 'Not ready' }}</span>
+    {{ check.summary }}{% if demo %} <span class="pill warn">DEMO</span>{% endif %}</p>
+  {% if check.reachable %}
+    <p class="small">{{ check.companies }} compan{{ 'y' if check.companies == 1 else 'ies' }},
+      {{ check.journals }} journals, {{ check.accounts }} GL accounts.
+      This Odoo tags a line with <code>{{ check.analytic_field }}</code>.</p>
+    <p class="small">Nothing was created. This asks only what a night will need, so it is safe to
+      run against a live server as often as you like.</p>
+  {% endif %}
+</div>
+
+{% if check.reachable %}
+<div class="card">
+  <div class="tablewrap"><table>
+    <thead><tr><th>Property</th><th>Company</th><th>Journal</th><th>Analytic</th><th>GL accounts</th><th></th></tr></thead>
+    <tbody>
+    {% for p in check.properties %}
+      <tr>
+        <td><b>{{ p.code }}</b></td>
+        <td class="small">{{ p.company or '—' }}</td>
+        <td class="small">{{ p.journal or '—' }}</td>
+        <td class="small">{{ p.analytic or '—' }}</td>
+        <td class="small">{% if p.missing_accounts %}<span class="err">{{ p.missing_accounts|length }} missing:
+            {{ p.missing_accounts[:8] | join(', ') }}{% if p.missing_accounts|length > 8 %} …{% endif %}</span>
+          {% else %}all there{% endif %}</td>
+        <td>{% if p.ok %}<span class="pill ok">ready</span>{% else %}<span class="pill bad">not yet</span>{% endif %}</td>
+      </tr>
+      {% if p.problems %}
+        <tr><td></td><td colspan="5" class="small err">{% for x in p.problems %}{{ x }}<br>{% endfor %}</td></tr>
+      {% endif %}
+    {% endfor %}
+    </tbody></table></div>
+</div>
+{% endif %}
+<p><a class="btn" href="/admin">Back to settings</a></p>
+{% endblock %}

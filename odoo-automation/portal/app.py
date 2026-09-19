@@ -29,6 +29,7 @@ from pms_to_odoo.invoices import InvoiceData, InvoiceLine, create_vendor_bill, e
 from pms_to_odoo.invoices.to_odoo import load_expense_map
 from pms_to_odoo.invoices.accounts import AccountAssigner
 from pms_to_odoo.journal import format_entry, post_entry
+from pms_to_odoo import odoo_check
 from pms_to_odoo.odoo_client import OdooClient, OdooError, OdooSettings
 from pms_to_odoo.mapping import GLMapping
 from pms_to_odoo.mapping_edit import insert_rules, rule_for, suggest_account
@@ -649,6 +650,23 @@ def daily_report(day: Optional[str] = None, user: User = Depends(require_admin))
 def daily_send(user: User = Depends(require_admin)):
     sent, why = scheduler.send_report(state, force=True)
     return RedirectResponse("/admin?" + ("msg=Report+sent" if sent else f"err={why}"), status_code=303)
+
+
+@app.post("/admin/odoo/check", response_class=HTMLResponse)
+def odoo_check_run(request: Request, user: User = Depends(require_admin)):
+    """Ask Odoo everything a night will need, before a night depends on the answer.
+
+    Creates nothing, so it is safe against a client's live server.
+    """
+    if not state.odoo_enabled:
+        return RedirectResponse("/admin?err=No+Odoo+connection+configured", status_code=303)
+    try:
+        client = OdooClient.connect(OdooSettings.from_env())
+    except OdooError as e:
+        return render(request, "admin_odoo_check.html",
+                      check=odoo_check.Check(reachable=False, why=str(e)), demo=state.odoo_demo)
+    return render(request, "admin_odoo_check.html", check=odoo_check.run(client, state.props),
+                  demo=state.odoo_demo)
 
 
 @app.post("/admin/queue/run")

@@ -184,6 +184,30 @@ class OdooClient:
         self._cache[key] = rows[0] if rows else None
         return self._cache[key]
 
+    # ---- what this server can actually do ------------------------------------------
+    def fields_of(self, model: str) -> set[str]:
+        """The field names a model has here.  Cached: it is the same for the whole run."""
+        key = ("fields", model)
+        if key not in self._cache:
+            got = self.t.call(model, "fields_get", attributes=["type"])
+            self._cache[key] = set(got or ())
+        return self._cache[key]
+
+    def analytic_field(self) -> str:
+        """How this Odoo wants a line tagged with a property.
+
+        Odoo 17 replaced `analytic_account_id` (a single id) with `analytic_distribution`
+        (a map of analytic account to percentage).  Guessing from a version number means
+        knowing the version and trusting it; asking the model which field it has is the same
+        answer with nothing to get wrong, and it costs one call per run.
+        """
+        fields = self.fields_of("account.move.line")
+        if "analytic_distribution" in fields:
+            return "analytic_distribution"
+        if "analytic_account_id" in fields:
+            return "analytic_account_id"
+        return ""                       # analytics not installed: the line simply goes untagged
+
     def company_id(self, company_code_or_name: Optional[str]) -> Optional[int]:
         if not company_code_or_name:
             return None

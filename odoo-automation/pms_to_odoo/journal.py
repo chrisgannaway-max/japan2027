@@ -34,7 +34,13 @@ def entry_to_odoo_values(entry: JournalEntry, client: OdooClient) -> dict:
             if partner:
                 vals["partner_id"] = partner["id"]
         if l.analytic_code:
-            vals["analytic_distribution"] = {str(client.analytic_account_id(l.analytic_code)): 100}
+            field = client.analytic_field()
+            if field == "analytic_distribution":            # Odoo 17 and later
+                vals[field] = {str(client.analytic_account_id(l.analytic_code)): 100}
+            elif field:                                     # Odoo 16 and earlier
+                vals[field] = client.analytic_account_id(l.analytic_code)
+            # and if the server has neither, the analytic account is simply not installed:
+            # better an entry that posts untagged than one that is refused outright.
         line_cmds.append([0, 0, vals])
     values: dict = {
         "move_type": "entry",

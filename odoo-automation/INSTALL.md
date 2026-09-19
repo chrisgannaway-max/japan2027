@@ -524,6 +524,25 @@ in Central. To move it, set `TIMEZONE` to any name from the IANA database and re
 startup line says which zone it took and what time it is there. An unknown name falls back to
 UTC with a warning rather than refusing to start.
 
+### Check the connection before a night depends on it
+
+**Settings → Check the Odoo connection.** It asks that server everything a night will need, in
+one pass, and reports all of it at once: whether it is reachable and the key is accepted, how
+many companies, journals and GL accounts it has, **which analytic field this version wants**,
+and then per property — its company, its journal, its analytic account, and every GL code in
+its mapping that does not exist there.
+
+It creates nothing, so it is safe against a client's live server as often as you like.
+
+Without it each of those arrives as a separate failure on a separate morning, and each one
+costs a round trip to somebody at the client.
+
+One thing it is worth knowing it checks: Odoo 17 replaced `analytic_account_id` (one id) with
+`analytic_distribution` (a map of account to percentage). Rather than infer that from a version
+number, the client asks `account.move.line` which field it has and tags accordingly — including
+the case where the analytic module is not installed at all, where a line goes untagged rather
+than the entry being refused.
+
 ## 16. Rehearsing Odoo before there is an Odoo
 
 Set `DELIVERY_MODE=odoo` with `ODOO_TRANSPORT=demo` and no URL or key, and the portal behaves

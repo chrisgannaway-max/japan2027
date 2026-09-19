@@ -56,6 +56,11 @@ class DemoTransport:
     # -- the one method a transport has to have -------------------------------------
     def call(self, model: str, method: str, ids=None, context=None, **kw) -> Any:
         self.calls.append((model, method, ids, kw))
+        if method == "fields_get":
+            # The demo stands in for a current Odoo, so it has the modern analytic field.
+            fields = {"account_id", "name", "debit", "credit", "partner_id", "move_id",
+                      "analytic_distribution", "ref", "state"}
+            return {f: {"type": "char"} for f in fields}
         if method == "search_read":
             return self._search_read(model, kw)
         if method == "create":
