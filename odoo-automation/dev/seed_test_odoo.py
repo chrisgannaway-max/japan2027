@@ -117,17 +117,30 @@ def main(code: str) -> int:
                           context=ctx)
             made.append(f"journal {mapping.journal}")
 
+    notes = []
     if mapping.analytic:
-        found = client.search_read("account.analytic.account",
-                                   ["|", ("code", "=", mapping.analytic),
-                                    ("name", "=", mapping.analytic)], ["id"], limit=1,
-                                   context=ctx)
-        if not found:
-            client.create("account.analytic.account", {"name": mapping.analytic,
-                                                       "code": mapping.analytic,
-                                                       "plan_id": analytic_plan(client)},
-                          context=ctx)
-            made.append(f"analytic account {mapping.analytic}")
+        try:
+            found = client.search_read("account.analytic.account",
+                                       ["|", ("code", "=", mapping.analytic),
+                                        ("name", "=", mapping.analytic)], ["id"], limit=1,
+                                       context=ctx)
+            if not found:
+                client.create("account.analytic.account", {"name": mapping.analytic,
+                                                           "code": mapping.analytic,
+                                                           "plan_id": analytic_plan(client)},
+                              context=ctx)
+                made.append(f"analytic account {mapping.analytic}")
+        except OdooError as e:
+            # Analytic accounting is off by default, and then the models are not merely empty
+            # but unreadable.  Everything else here is worth keeping, so say what to tick and
+            # carry on rather than throwing away a working journal and 26 accounts.
+            notes.append(
+                f"Could not set up the analytic account {mapping.analytic!r}: {e}\n"
+                "  That is analytic accounting being switched off, not a real permissions\n"
+                "  problem. In Odoo: Invoicing -> Configuration -> Settings -> tick Analytic\n"
+                "  Accounting -> Save, then run this again.\n"
+                "  Or leave it off and clear `analytic:` from the mapping: the entry will post\n"
+                "  untagged, which still proves everything except the tagging itself.")
 
     if made:
         print(f"Created {len(made)} thing(s) for {code}:")
@@ -135,6 +148,9 @@ def main(code: str) -> int:
             print("  ", m)
     else:
         print(f"Nothing to do: this Odoo already has everything {code} needs.")
+    for note in notes:
+        print(f"\n{note}")
+
     names = client.search_read("res.company", [("id", "=", company_id)], ["name"], limit=1)
     here = names[0]["name"] if names else str(company_id)
     print(f"\nAll of it belongs to company {here!r}.")
