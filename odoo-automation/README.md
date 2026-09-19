@@ -27,6 +27,23 @@ produces an entry that balances to the cent against the report's own control tot
 no sample was ever seen of; Champion have confirmed the properties still running it are not
 part of this project. Adding one later means writing a parser, not changing a setting.
 
+**The Odoo side has been run against a real server.** On 19 September 2026 an Embassy Suites
+night was parsed, mapped and written into an Odoo 17 through the XML-RPC API as
+`PEP-OKCON-2025-11-10`, balancing at $92,570.78 on both sides — the same figure the test suite
+asserts against the sample. Until then the Odoo client had only ever spoken to a fake, and two
+bugs were waiting in the gap:
+
+* **`create` sent its values by name.** Odoo's XML-RPC dispatcher reads them out of the first
+  positional argument, so every write failed with `IndexError: tuple index out of range` — a
+  message naming neither the model nor the missing parameter. Journal entries included.
+* **`account.account` would not create without a company**, reported as the same unhelpful
+  `IndexError`.
+
+Neither was reachable from a fake: a fake implements the `call()` interface, not Odoo's
+dispatch, so it accepts what a real server discards. Worth remembering before trusting any
+integration that has only ever been tested against a stand-in. `dev/odoo-compose.yml` and
+`dev/seed_test_odoo.py` make that test repeatable in about twenty minutes.
+
 Account codes in the mapping files are USALI-style placeholders until the Odoo chart of
 accounts is settled. The Hilton "Hotel Statistics" and HotelKey "Hotel Statistics" reports
 are not needed for the journal entry.
