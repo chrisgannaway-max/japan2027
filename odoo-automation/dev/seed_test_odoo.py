@@ -42,6 +42,36 @@ def account_type(code: str) -> str:
     return TYPE_BY_FIRST_DIGIT.get(code[:1], "asset_current")
 
 
+def company_of(client: OdooClient, wanted: str = "") -> int:
+    """The company to hang everything off.
+
+    account.account will not create without one, and says so as "IndexError: tuple index out
+    of range" rather than anything a person could act on.
+    """
+    if wanted:
+        rows = client.search_read("res.company", [("name", "=", wanted)], ["id"], limit=1)
+        if rows:
+            return rows[0]["id"]
+    rows = client.search_read("res.company", [], ["id", "name"], limit=1)
+    if not rows:
+        raise OdooError("This Odoo has no companies at all, which should not be possible.")
+    return rows[0]["id"]
+
+
+def with_company(client: OdooClient, model: str, values: dict, company_id: int) -> dict:
+    """Name the company the way this version of the model expects it.
+
+    Odoo 17.2 turned account.account's single company_id into a company_ids many-to-many.
+    Asking the model which field it has beats guessing from a version number.
+    """
+    fields = client.fields_of(model)
+    if "company_ids" in fields:
+        return values | {"company_ids": [(6, 0, [company_id])]}
+    if "company_id" in fields:
+        return values | {"company_id": company_id}
+    return values
+
+
 def analytic_plan(client: OdooClient) -> int:
     """Odoo 17 requires every analytic account to sit in a plan."""
     rows = client.search_read("account.analytic.plan", [], ["id", "name"], limit=1)
@@ -60,29 +90,43 @@ def main(code: str) -> int:
     client = OdooClient.connect(OdooSettings.from_env())
     made = []
 
+    company_id = company_of(client, mapping.company)
+    # Create and read back as the same company, or Odoo hands out records the later lookups
+    # cannot see.
+    ctx = {"allowed_company_ids": [company_id]}
+
     wanted = {str(r.account): account_type(str(r.account)) for r in mapping.rules if r.account}
-    have = {r["code"] for r in client.search_read("account.account", [], ["code"])}
+    have = {r["code"] for r in client.search_read("account.account", [], ["code"], context=ctx)}
     for acct, kind in sorted(wanted.items()):
         if acct in have:
             continue
-        client.create("account.account", {"code": acct, "name": f"{acct} (test)",
-                                          "account_type": kind})
+        client.create("account.account",
+                      with_company(client, "account.account",
+                                   {"code": acct, "name": f"{acct} (test)",
+                                    "account_type": kind}, company_id),
+                      context=ctx)
         made.append(f"account {acct} ({kind})")
 
     if mapping.journal:
-        if not client.search_read("account.journal", [("code", "=", mapping.journal)], ["id"], limit=1):
-            client.create("account.journal", {"name": "Night Audit", "code": mapping.journal,
-                                              "type": "general"})
+        if not client.search_read("account.journal", [("code", "=", mapping.journal)], ["id"],
+                                  limit=1, context=ctx):
+            client.create("account.journal",
+                          with_company(client, "account.journal",
+                                       {"name": "Night Audit", "code": mapping.journal,
+                                        "type": "general"}, company_id),
+                          context=ctx)
             made.append(f"journal {mapping.journal}")
 
     if mapping.analytic:
         found = client.search_read("account.analytic.account",
                                    ["|", ("code", "=", mapping.analytic),
-                                    ("name", "=", mapping.analytic)], ["id"], limit=1)
+                                    ("name", "=", mapping.analytic)], ["id"], limit=1,
+                                   context=ctx)
         if not found:
             client.create("account.analytic.account", {"name": mapping.analytic,
                                                        "code": mapping.analytic,
-                                                       "plan_id": analytic_plan(client)})
+                                                       "plan_id": analytic_plan(client)},
+                          context=ctx)
             made.append(f"analytic account {mapping.analytic}")
 
     if made:
@@ -91,10 +135,13 @@ def main(code: str) -> int:
             print("  ", m)
     else:
         print(f"Nothing to do: this Odoo already has everything {code} needs.")
-    if mapping.company:
-        print(f"\nNote: the mapping posts to company {mapping.company!r}, which was not created "
-              "-- companies are a structural decision, not test data. Clear `company:` in "
-              f"{resolve(prop, 'gl_mapping').name} to post to whatever company this server has.")
+    names = client.search_read("res.company", [("id", "=", company_id)], ["name"], limit=1)
+    here = names[0]["name"] if names else str(company_id)
+    print(f"\nAll of it belongs to company {here!r}.")
+    if mapping.company and mapping.company != here:
+        print(f"The mapping posts to {mapping.company!r}, which this server does not have. "
+              "Companies are a structural decision, not test data, so none was created: either "
+              f"clear `company:` in {resolve(prop, 'gl_mapping').name}, or set it to {here!r}.")
     return 0
 
 
