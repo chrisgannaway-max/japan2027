@@ -24,6 +24,10 @@ produces an entry that balances to the cent against the report's own control tot
 | Marriott | Agilysys Stay    | **Ledger Summary** grouped by ledger, PDF or CSV export | OKCAW | `AGILYSYS`  |
 | Wyndham  | SynXis Property Hub | **Transaction Totals Summary** + **Hotel Ledger Comparison Report** (pair, same folder) | 89051 | `SYNXIS` |
 
+**Marriott Fosse is out of scope.** It was the seventh system in the estate and the only one
+no sample was ever seen of; Champion have confirmed the properties still running it are not
+part of this project. Adding one later means writing a parser, not changing a setting.
+
 Account codes in the mapping files are USALI-style placeholders until the Odoo chart of
 accounts is settled. The Hilton "Hotel Statistics" and HotelKey "Hotel Statistics" reports
 are not needed for the journal entry.

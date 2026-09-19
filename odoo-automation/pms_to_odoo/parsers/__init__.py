@@ -23,6 +23,19 @@ PARSERS: dict[str, type[BaseParser]] = {
     "SYNXIS": WyndhamSynxisParser,       # Wyndham
     "GENERIC": GenericTableParser,
 }
+
+# Marriott **Fosse** is deliberately absent.  It came up as the seventh system in the estate --
+# Marriott's older property-management system, still running at properties that had not been
+# moved to Agilysys -- and was carried as an open item for a while because no sample of it had
+# ever been seen.  Champion have since confirmed those properties are not part of this project,
+# so it was never built rather than built and left untested.  Nothing here has read a Fosse
+# report; the Marriott property in scope (OKCAW) is on Agilysys, and that parser was written
+# against a real export.
+#
+# If a Fosse property is ever added, this is a new parser and a real piece of work -- not a
+# configuration change.  Ask for one night's report first: a format nobody has seen cannot be
+# estimated, and the two Hilton PEP layouts showed that even one vendor's own report varies
+# enough to need its own reading.
 ALIASES = {"HILTON": "PEP", "MARRIOTT": "AGILYSYS", "CHOICE": "CHOICEADV", "CHOICEADVANTAGE": "CHOICEADV",
            "WYNDHAM": "SYNXIS", "IHG": "HOTELKEY", "HOTELKEY": "HOTELKEY", "OPERACLOUD": "OPERA"}
 

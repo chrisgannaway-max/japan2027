@@ -740,6 +740,13 @@ The software is finished ahead of these; each one is a value to fill in, not wor
 
 1. The chart of accounts, and the mapping worksheet filled in.
 2. Where Odoo is, which version, and a bot user with an API key.
-3. A Fosse sample — the seventh format, still live at the unconverted properties, and the only
-   one never seen.
+3. One night's pack from **each hotel**, not one per system. Two hotels on the same PMS can
+   print differently enough to need separate work: Embassy Suites and the Hilton Garden Inn are
+   both PEP "Final Audit", and the Garden Inn's came out $1,132.35 over until its layout was
+   read on its own terms.
 4. The sending address and access to the DNS for that subdomain.
+
+**Settled, and no longer waiting on anything:** Marriott **Fosse** was carried here for a while
+as the seventh format — the one no sample had ever been seen of. Champion have confirmed the
+properties still on it are not part of this project, so it was never built. If that changes it
+is a new parser and a real piece of work; ask for a night's report before estimating it.
