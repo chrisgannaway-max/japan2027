@@ -554,6 +554,16 @@ in Central. To move it, set `TIMEZONE` to any name from the IANA database and re
 startup line says which zone it took and what time it is there. An unknown name falls back to
 UTC with a warning rather than refusing to start.
 
+### Reviewing a night in Odoo: it will look unbalanced, and it is not
+
+A night is forty-odd journal items, and Odoo's form paginates them forty at a time **and totals
+only the page you are on**. The Embassy Suites night above shows $52,465.05 against $92,570.78
+on page one and $40,105.73 against nothing on page two. Both together are $92,570.78 each way.
+
+Worth telling whoever reviews these before their first morning, because the obvious reading of
+that screen is that the entry does not balance. It cannot fail to: an unbalanced entry is
+refused before it is ever sent, and Odoo would refuse it again.
+
 ### Check the connection before a night depends on it
 
 **Settings → Check the Odoo connection.** It asks that server everything a night will need, in
