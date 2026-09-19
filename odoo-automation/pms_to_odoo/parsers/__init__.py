@@ -20,7 +20,7 @@ PARSERS: dict[str, type[BaseParser]] = {
     "HOTELKEY": IHGHotelKeyParser,       # IHG
     "OPERA": IHGOperaParser,             # IHG
     "CHOICEADV": ChoiceAdvantageParser,  # Choice
-    "SYNXIS": WyndhamSynxisParser,       # Wyndham (no sample yet)
+    "SYNXIS": WyndhamSynxisParser,       # Wyndham
     "GENERIC": GenericTableParser,
 }
 ALIASES = {"HILTON": "PEP", "MARRIOTT": "AGILYSYS", "CHOICE": "CHOICEADV", "CHOICEADVANTAGE": "CHOICEADV",
