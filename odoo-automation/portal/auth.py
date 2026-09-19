@@ -70,6 +70,16 @@ def hash_password(password: str, salt: Optional[bytes] = None, rounds: int = 200
     return f"pbkdf2${rounds}${base64.b64encode(salt).decode()}${base64.b64encode(dk).decode()}"
 
 
+def unusable_password_hash() -> str:
+    """A hash nothing can match, for an account whose owner has not chosen a password yet.
+
+    Better than a blank or a known default: an imported account cannot be signed into at all
+    until the person follows their own set-password link, so a list of new logins is not a
+    list of ways in.
+    """
+    return hash_password(secrets.token_urlsafe(64))
+
+
 def verify_password(password: str, stored: str) -> bool:
     try:
         _, rounds, salt, dk = stored.split("$")

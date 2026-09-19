@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% block title %}Import logins{% endblock %}
+{% block body %}
+<h1>Import logins</h1>
+
+{% if errors %}
+<div class="card">
+  <p><span class="pill bad">Nothing was imported</span> A single bad row stops the whole file, so
+    nobody is left half created. Fix these and upload it again.</p>
+  <ul>{% for e in errors %}<li class="msg err">{{ e }}</li>{% endfor %}</ul>
+  <p><a class="btn" href="/admin">Back to settings</a></p>
+</div>
+{% else %}
+<div class="card">
+  <p><span class="pill ok">{{ results|length }} login{{ '' if results|length == 1 else 's' }}</span>
+    {{ results | selectattr('row.exists', 'equalto', false) | list | length }} created,
+    {{ results | selectattr('row.exists') | list | length }} updated.</p>
+  <p class="small">Nobody can sign in until they choose a password. Each link below works once and
+    lasts {{ (minutes // 1440) }} days.{% if not can_email %} There is no mail server configured,
+    so these have not been sent &mdash; copy each one to its person.{% endif %}</p>
+</div>
+
+<div class="card">
+  <div class="tablewrap"><table>
+    <thead><tr><th>Username</th><th>Role</th><th>Properties</th><th>E-mail</th><th></th><th>Set-password link</th></tr></thead>
+    <tbody>
+    {% for r in results %}
+      <tr>
+        <td><b>{{ r.row.username }}</b></td>
+        <td>{{ r.row.role }}{% if not r.row.enabled %} <span class="pill muted">disabled</span>{% endif %}</td>
+        <td class="small">{{ r.row.properties | join(', ') or 'all' }}</td>
+        <td class="small">{{ r.row.email }}</td>
+        <td>{% if r.row.exists %}<span class="pill muted">updated</span>{% else %}<span class="pill ok">new</span>{% endif %}
+            {% if r.sent == 'sent' %}<span class="pill ok">e-mailed</span>
+            {% elif r.sent %}<span class="pill bad" title="{{ r.sent }}">not e-mailed</span>{% endif %}</td>
+        <td class="small"><input value="{{ r.link }}" readonly onclick="this.select()" style="width:100%"></td>
+      </tr>
+    {% endfor %}
+    </tbody></table></div>
+  <p class="small">These links are the only way into those accounts until a password is chosen, so
+    send them to the person they belong to and nowhere else. This page is the one time they are
+    shown &mdash; reload it and they are gone.</p>
+</div>
+<p><a class="btn" href="/admin">Back to settings</a></p>
+{% endif %}
+{% endblock %}

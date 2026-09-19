@@ -221,6 +221,19 @@ def reset_email(username: str, link: str, minutes: int) -> tuple[str, str]:
             f"If that was not you, ignore this message. Your current password still works.\n")
 
 
+def welcome_email(username: str, link: str, minutes: int, invited_by: str = "") -> tuple[str, str]:
+    """What a newly imported account gets.  No password in it, only a link to choose one."""
+    days = max(1, minutes // (24 * 60))
+    return ("Your Night Audit login",
+            f"Hello,\n\n"
+            f"An account has been set up for you on the Night Audit portal"
+            + (f" by {invited_by}" if invited_by else "") + ".\n\n"
+            f"Your username is {username}. Choose a password here, within {days} "
+            f"day{'s' if days != 1 else ''}:\n\n    {link}\n\n"
+            f"The link works once. If it has expired by the time you get to it, use "
+            f"'Forgotten your password?' on the sign-in page and a new one will be sent.\n")
+
+
 def missing_uploads_email(day: str, missing: list[str], problems: list[str], link: Optional[str] = None) -> tuple[str, str]:
     lines = [f"Night audit for {day}", ""]
     lines += [f"Not uploaded ({len(missing)}): " + (", ".join(missing) or "none")]

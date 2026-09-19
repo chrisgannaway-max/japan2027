@@ -38,8 +38,8 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
-                    new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
-from . import clock, daily, intake, poster, scheduler, storage
+                    new_totp_secret, totp_qr_svg, totp_uri, unusable_password_hash, verify_totp)
+from . import clock, daily, intake, poster, scheduler, storage, users_import
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -287,6 +287,9 @@ def login_mfa(request: Request, pending: str = Form(...), code: str = Form(...))
 
 # ------------------------------------------------------------------ forgotten passwords
 RESET_MINUTES = 60
+#: Longer than a forgotten-password link: an imported account's first one has to survive
+#: somebody getting to their e-mail the next morning.
+SET_PASSWORD_MINUTES = 7 * 24 * 60
 SAME_ANSWER = ("If that account exists and has an e-mail address on file, a reset link is on its way. "
                "The link lasts an hour.")
 
@@ -1115,6 +1118,57 @@ async def mapping_save(request: Request, run_id: int, user: User = Depends(requi
                               file_name=r["file_name"], stored_path=r["stored_path"], result_json=res2.to_json())
     print(f"[mapping] {len(new_rules)} rule(s), {ignored} ignore(s) for {res.property_code} -> {where}")
     return RedirectResponse(f"/runs/{new_id}" if res2.status == "ok" else f"/admin/mapping/{new_id}", status_code=303)
+
+
+# ------------------------------------------------------------------ logins, from a file
+@app.get("/admin/users/template.csv")
+def users_template(user: User = Depends(require_admin)):
+    """The file to fill in, carrying this deployment's own property codes in the examples."""
+    body = users_import.template(sorted(state.props))
+    return Response(body, media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="logins.csv"'})
+
+
+@app.post("/admin/users/import", response_class=HTMLResponse)
+async def users_import_csv(request: Request, user: User = Depends(require_admin),
+                           file: UploadFile = File(...), send: str = Form("yes")):
+    """Create the logins in one go, and give each person a link to choose their own password.
+
+    Nothing is written unless every row is good: half an import leaves somebody wondering
+    which four of seven managers exist.
+    """
+    store = require_db_store()
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")            # a spreadsheet saved on a Windows machine
+    parsed = users_import.parse(text, known_properties=state.props,
+                                existing_usernames=[u["username"] for u in store.all_users()],
+                                protect=user.username)
+    if not parsed.ok:
+        return render(request, "admin_users_import.html", errors=parsed.errors, results=[],
+                      can_email=mail.configured(), minutes=SET_PASSWORD_MINUTES)
+
+    results = []
+    for row in parsed.rows:
+        store.save_user(username=row.username, role=row.role, properties=row.properties,
+                        password_hash=(None if row.exists else unusable_password_hash()),
+                        enabled=row.enabled, email=row.email)
+        token = secrets.token_urlsafe(32)
+        state.db.create_reset(row.username, token, SET_PASSWORD_MINUTES)
+        link = f"{mail.base_url() or str(request.base_url).rstrip('/')}/reset?token={token}"
+        sent = ""
+        if send == "yes" and mail.configured():
+            subject, body = mail.welcome_email(row.username, link, SET_PASSWORD_MINUTES,
+                                               invited_by=user.username)
+            ok, why = mail.send_reporting(row.email, subject, body)
+            sent = "sent" if ok else f"not sent: {why.splitlines()[0]}"
+        results.append({"row": row, "link": link, "sent": sent})
+    state.reload_config()
+    print(f"[users] {user.username} imported {len(results)} login(s) from {file.filename}")
+    return render(request, "admin_users_import.html", errors=[], results=results,
+                  can_email=mail.configured(), minutes=SET_PASSWORD_MINUTES)
 
 
 # ------------------------------------------------------------------ worksheet import

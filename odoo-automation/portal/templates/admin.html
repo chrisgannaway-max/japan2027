@@ -87,6 +87,17 @@
       {% if store_mode == 'db' %}<td><form method="post" action="/admin/users" class="row"><input type="hidden" name="username" value="{{ u.username }}"><input type="hidden" name="role" value="{{ u.role }}"><input type="hidden" name="properties" value="{{ u.properties }}"><input type="hidden" name="email" value="{{ u.email }}"><input id="pw_{{ u.username }}" name="password" type="password" placeholder="new password"><button class="btn secondary" type="submit">Reset</button><button class="btn secondary" type="submit" name="action" value="delete">Delete</button></form></td>{% endif %}</tr>
     {% endfor %}</tbody></table></div>
   {% if store_mode == 'db' %}
+  <h3>Import logins from a file</h3>
+  <p class="small">Seven hotels means seven managers. Fill in the template &mdash; username, role,
+    properties, e-mail &mdash; and each person gets a link to choose their own password. There is no
+    password column on purpose: a file of them ends up in somebody's Downloads.</p>
+  <form method="post" action="/admin/users/import" enctype="multipart/form-data" class="row">
+    <a class="btn secondary" href="/admin/users/template.csv">Download the template</a>
+    <label>Filled-in file <input id="users_file" type="file" name="file" accept=".csv,.txt" required></label>
+    <label><input type="checkbox" name="send" value="yes" checked> e-mail each person their link</label>
+    <button class="btn" type="submit">Import</button>
+  </form>
+
   <h3>Add or update a login</h3>
   <form method="post" action="/admin/users" class="row">
     <input id="new_username" name="username" placeholder="username" required>

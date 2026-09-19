@@ -293,6 +293,37 @@ site being broken and go back to the spreadsheet.
 
 ---
 
+### Adding the logins from a file
+
+Seven hotels means seven managers plus whoever is in the office, and typing them in one at a
+time is both slow and where a wrong property code slips in unnoticed. On `/admin`, under
+**Logins**, download the template and fill it in:
+
+| Column | Required | What goes in it |
+|---|---|---|
+| `username` | yes | Letters, digits, dot, dash, underscore. 2–64 characters, no spaces. |
+| `role` | yes | `manager` (sees only their hotels) or `admin` (sees everything, can post to Odoo). |
+| `properties` | for a manager | One or more property codes. Comma, space or semicolon — whatever you reached for. Blank for an admin, who already sees all of them. |
+| `email` | yes | How they set their own password, and the only way they can reset it later. |
+| `enabled` | no | `yes` or `no`. Blank means yes. |
+
+Extra columns are ignored, the header is read case-insensitively, and a spreadsheet's trailing
+blank lines do not count as rows.
+
+**There is no password column, on purpose.** A file of passwords gets e-mailed, sits in
+Downloads and eventually reaches a repository, and the first thing anyone does with one is give
+everybody the same password. Each imported account is created with a password nobody knows, and
+the import hands back a single-use link per person, good for seven days, for choosing their own.
+Where mail is configured the links are sent; otherwise they are shown once on the result page
+for you to pass on. Until somebody follows theirs, their account cannot be signed into at all.
+
+**Nothing is written unless every row is good.** One bad row stops the file and names the line,
+because a half-finished import leaves you wondering which four of seven managers exist.
+
+A username that already exists is an update, not an error: role, properties, e-mail and enabled
+are changed and the password is left alone. The account doing the importing is refused — change
+your own role on your own account page, so a typo in a spreadsheet cannot lock you out.
+
 ## 8. Move the configuration into the database
 
 With `PORTAL_STORE=db`, the hotels, logins and mappings live in the database and are edited on
