@@ -224,3 +224,25 @@ def test_the_estate_file_leaves_every_new_hotel_switched_off():
     parsed = properties_import.parse(ESTATE.read_text(), existing_codes=[])
     live = {"OKCON", "TXI47", "OKCMD", "CANDLEWOOD-MOORE", "OKCAW", "OKCAH"}
     assert {r.code for r in parsed.rows if r.enabled} == live
+
+
+def test_the_reference_file_agrees_with_itself_about_scope():
+    """Champion ruled out the hotels with no reader; in_scope has to mean exactly that."""
+    import csv
+    rows = list(csv.DictReader((CONFIG_DIR / "champion_portfolio.csv").open()))
+    assert len(rows) == 172
+    assert all((r["in_scope"] == "yes") == bool(r["pms"]) for r in rows)
+    assert sum(1 for r in rows if r["in_scope"] == "yes") == 146
+    assert {r["pms"] for r in rows if r["in_scope"] == "yes"} <= set(properties_import.known_pms())
+
+
+def test_every_hotel_in_the_import_file_is_in_scope():
+    import csv
+    ref = {}
+    for r in csv.DictReader((CONFIG_DIR / "champion_portfolio.csv").open()):
+        for key in (r["site_code"], r["live_code"]):   # the six live ones kept their own code
+            if key:
+                ref[key] = r
+    parsed = properties_import.parse(ESTATE.read_text(), existing_codes=[])
+    for row in parsed.rows:
+        assert ref[row.code]["in_scope"] == "yes", row.code
