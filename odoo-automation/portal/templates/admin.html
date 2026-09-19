@@ -92,12 +92,36 @@
 <div class="card">
   <h2>Logins</h2>
   <div class="tablewrap"><table>
-    <thead><tr><th>Username</th><th>Role</th><th>Properties</th><th>E-mail</th><th>Two-step</th><th>Enabled</th>{% if store_mode == 'db' %}<th></th>{% endif %}</tr></thead>
+    <thead><tr><th>Username</th><th>Role</th><th>Properties</th><th>E-mail</th><th>Two-step</th><th>Enabled</th>{% if store_mode == 'db' %}<th>New password</th><th></th>{% endif %}</tr></thead>
     <tbody>{% for u in users_list %}
-      <tr><td>{{ u.username }}</td><td>{{ u.role }}</td><td>{{ u.properties }}</td><td class="small">{{ u.email or '—' }}</td><td>{% if u.mfa_enabled %}<span class="pill ok">on</span> <form method="post" action="/admin/users/{{ u.username }}/mfa-reset" style="display:inline"><button class="btn secondary" type="submit" title="lost phone">reset</button></form>{% else %}<span class="small">off</span>{% endif %}</td><td>{{ 'yes' if u.enabled else 'no' }}</td>
-      {% if store_mode == 'db' %}<td><form method="post" action="/admin/users" class="row"><input type="hidden" name="username" value="{{ u.username }}"><input type="hidden" name="role" value="{{ u.role }}"><input type="hidden" name="properties" value="{{ u.properties }}"><input type="hidden" name="email" value="{{ u.email }}"><input id="pw_{{ u.username }}" name="password" type="password" placeholder="new password"><button class="btn secondary" type="submit">Reset</button><button class="btn secondary" type="submit" name="action" value="delete">Delete</button></form></td>{% endif %}</tr>
+      {% set fid = 'u' ~ loop.index %}
+      <tr><td>{{ u.username }}</td>
+      {% if store_mode == 'db' %}
+        <td><select name="role" form="{{ fid }}"><option value="manager"{{ ' selected' if u.role == 'manager' }}>manager</option><option value="admin"{{ ' selected' if u.role == 'admin' }}>admin</option></select></td>
+        <td><input name="properties" form="{{ fid }}" value="{{ u.properties }}" size="16" placeholder="all"></td>
+        <td><input name="email" form="{{ fid }}" type="email" value="{{ u.email }}" size="20" placeholder="no resets"></td>
+      {% else %}
+        <td>{{ u.role }}</td><td>{{ u.properties }}</td><td class="small">{{ u.email or '—' }}</td>
+      {% endif %}
+        <td>{% if u.mfa_enabled %}<span class="pill ok">on</span> <form method="post" action="/admin/users/{{ u.username }}/mfa-reset" style="display:inline"><button class="btn secondary" type="submit" title="lost phone">reset</button></form>{% else %}<span class="small">off</span>{% endif %}</td>
+      {% if store_mode == 'db' %}
+        <td><select name="enabled" form="{{ fid }}"><option value="1"{{ ' selected' if u.enabled }}>yes</option><option value="0"{{ ' selected' if not u.enabled }}>no</option></select></td>
+        <td><form method="post" action="/admin/users" id="{{ fid }}"></form>
+          <input type="hidden" name="username" value="{{ u.username }}" form="{{ fid }}">
+          <input id="pw_{{ u.username }}" name="password" type="password" placeholder="leave blank to keep" form="{{ fid }}"></td>
+        <td class="row"><button class="btn" type="submit" form="{{ fid }}">Save</button>
+          <button class="btn secondary" type="submit" name="action" value="delete" form="{{ fid }}">Delete</button></td>
+      {% else %}
+        <td>{{ 'yes' if u.enabled else 'no' }}</td>
+      {% endif %}
+      </tr>
     {% endfor %}</tbody></table></div>
   {% if store_mode == 'db' %}
+  <p class="small">Change anything on a row and press Save. A blank password box leaves the
+    password alone, so a role or e-mail can be corrected without resetting it. Enabled "no"
+    keeps the person and their two-step enrolment but stops them signing in &mdash; which is
+    what you want for someone who has left, rather than Delete.</p>
+
   <h3>Import logins from a file</h3>
   <p class="small">Seven hotels means seven managers. Fill in the template &mdash; username, role,
     properties, e-mail &mdash; and each person gets a link to choose their own password. There is no

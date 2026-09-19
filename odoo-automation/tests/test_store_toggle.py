@@ -185,3 +185,54 @@ def test_pooler_without_the_project_ref_is_named_for_what_it_is():
     hint = good._hint(failed)
     assert "is expected and not the problem" in hint and "This is the password" in hint
     assert "has to be" not in hint                      # never tells them to rewrite a right user name
+
+
+def test_a_login_can_be_edited_in_place(tmp_path, monkeypatch):
+    """Role, properties and e-mail used to be hidden fields on the row: carried through a
+    password reset, but impossible to change.  A typo meant deleting the person and starting
+    again, which loses their MFA enrolment with it."""
+    client, app_module = make_client(tmp_path, monkeypatch, "db")
+    client.post("/login", data={"username": "admin", "password": "admin"})
+
+    r = client.post("/admin/users", data={"username": "okcon", "role": "admin",
+                                          "properties": "OKCON, TXI47",
+                                          "email": "gm@example.com", "enabled": "1"})
+    assert r.status_code == 303
+    row = next(u for u in app_module.state.store.all_users() if u["username"] == "okcon")
+    assert row["role"] == "admin"
+    assert row["properties"] == "OKCON,TXI47"
+    assert row["email"] == "gm@example.com"
+
+    # no password in the form means the one they already have, not a refusal and not a blank
+    client.get("/logout")
+    assert client.post("/login", data={"username": "okcon", "password": "okcon"}).status_code == 303
+
+
+def test_a_login_can_actually_be_switched_off(tmp_path, monkeypatch):
+    """`bool("0")` is True, so the old reading of the form could never disable anyone -- the
+    Enabled column showed a state the page had no way to reach."""
+    client, app_module = make_client(tmp_path, monkeypatch, "db")
+    client.post("/login", data={"username": "admin", "password": "admin"})
+
+    assert client.post("/admin/users", data={"username": "okcon", "role": "manager",
+                                             "properties": "OKCON", "enabled": "0"}).status_code == 303
+    assert not any(u["username"] == "okcon" for u in app_module.state.store.users())
+
+    client.get("/logout")
+    assert client.post("/login", data={"username": "okcon", "password": "okcon"}).status_code != 303
+
+    # and back on again
+    client.post("/login", data={"username": "admin", "password": "admin"})
+    assert client.post("/admin/users", data={"username": "okcon", "role": "manager",
+                                             "properties": "OKCON", "enabled": "1"}).status_code == 303
+    client.get("/logout")
+    assert client.post("/login", data={"username": "okcon", "password": "okcon"}).status_code == 303
+
+
+def test_adding_a_login_with_no_enabled_field_still_works(tmp_path, monkeypatch):
+    """The "add a login" form has no enabled control, so absent has to keep meaning yes."""
+    client, app_module = make_client(tmp_path, monkeypatch, "db")
+    client.post("/login", data={"username": "admin", "password": "admin"})
+    assert client.post("/admin/users", data={"username": "gm9", "role": "manager",
+                                             "properties": "OKCON", "password": "pw"}).status_code == 303
+    assert any(u["username"] == "gm9" for u in app_module.state.store.users())

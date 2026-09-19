@@ -1007,7 +1007,13 @@ async def admin_user_save(request: Request, user: User = Depends(require_admin))
         else:
             props = [p.strip() for p in (form.get("properties") or "").replace(";", ",").split(",")]
             store.save_user(form.get("username", ""), form.get("role", "manager"), props,
-                            password=(form.get("password") or None), enabled=bool(form.get("enabled", "1")),
+                            password=(form.get("password") or None),
+                            # bool("0") is True, so the old reading of this could never switch a
+                            # login off -- and users() only returns enabled=1, so "no" here
+                            # is what stops somebody signing in.  Absent still means yes, because
+                            # the "add a login" form below has no such field.
+                            enabled=str(form.get("enabled", "1")).strip().lower()
+                                    not in ("0", "no", "false", "off", ""),
                             email=(form.get("email") or ""))
     except ValueError as e:
         return RedirectResponse(f"/admin?err={e}", status_code=303)
