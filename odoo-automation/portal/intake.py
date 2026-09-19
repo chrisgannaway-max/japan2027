@@ -9,8 +9,9 @@ Sources, in the same shape as the storage and database adapters:
     FolderSource   .eml files (or bare PDFs) dropped in a directory.  No account, no DNS, no
                    credentials: this is how the whole path is tested, and how a batch of old
                    reports can be replayed.
-    (later)        an inbound webhook from a transactional mail provider, which hands over the
-                   same fields.  `Message` is the seam.
+    webhook        POST /intake/mail, a transactional mail provider handing over the same
+                   fields (see `message_from_postmark`).  `Message` is the seam, so the
+                   provider can be changed without the pipeline noticing.
 
 De-duplication is three layers deep because any one of them has a hole:
 
