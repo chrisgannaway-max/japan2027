@@ -172,11 +172,19 @@ needs and reports it in one go. `docker compose -f dev/odoo-compose.yml down -v`
 **When the machine in front of you is not yours to install Docker on.** A day-job laptop is a
 common and good reason not to. Three ways, cheapest first:
 
-1. **GitHub Codespaces.** `.devcontainer/` in this repository is set up for it: open the repo in
-   a codespace and you get Python, Docker and both ports forwarded, on GitHub's machine rather
-   than yours. Personal Free accounts include 120 core hours and 15 GB a month — roughly 60
-   hours on a 2-core box — which is far more than this needs. **Stop the codespace when you
-   finish**, because storage keeps counting while it exists.
+1. **GitHub Codespaces.** Open the repository in a codespace and use it as it comes: with no
+   dev-container configuration, GitHub builds from its own universal image, which already has
+   Python and Docker. That is on GitHub's machine, not yours. Personal Free accounts include
+   120 core hours and 15 GB a month — roughly 60 hours on a 2-core box — far more than this
+   needs. **Stop the codespace when you finish**, because storage keeps counting while it
+   exists.
+
+   There is deliberately no `.devcontainer/` here, and it should stay that way. One was tried:
+   the `devcontainers/python` image has moved to Debian trixie, the docker-in-docker feature
+   still defaults to installing Moby packages that trixie does not carry, and the codespace
+   came up in recovery mode before any work could start. It is fixable — `"moby": false` on
+   the feature, or an older base — but the default image already has Python and Docker, so a
+   config file here buys nothing and adds a way to fail.
 2. **A small cloud box.** Any $5-a-month VPS runs the compose file above. Delete it when the
    integration is proven.
 3. **Render**, where the portal already lives. It will work — a Docker service, a managed
