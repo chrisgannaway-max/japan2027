@@ -1,0 +1,42 @@
+# A throwaway Odoo to test against.  Nothing here is Champion's -- theirs is hosted by Odoo on
+# the Custom plan.  This exists so the API path can be exercised without touching a live
+# accounting system, and so it can be deleted and rebuilt whenever it gets into a state.
+#
+#   docker compose -f dev/odoo-compose.yml up -d
+#   docker compose -f dev/odoo-compose.yml down -v      # -v also drops the database
+#
+# Odoo Community, so there is no licence and no API restriction: on Odoo Online the external
+# API needs the Custom plan, which is what Champion bought, but a Community copy has no such
+# limit and answers the same calls.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: postgres
+    volumes:
+      - odoo-db:/var/lib/postgresql/data
+    healthcheck:
+      # Odoo gives up rather than waiting if the database is not ready when it starts.
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      retries: 10
+
+  odoo:
+    image: odoo:17
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8069:8069"
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: odoo
+    volumes:
+      - odoo-data:/var/lib/odoo          # the filestore: attachments survive a restart
+
+volumes:
+  odoo-db:
+  odoo-data:

@@ -1,0 +1,16 @@
+{
+  "name": "night-audit-odoo",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [8000, 8069],
+  "portsAttributes": {
+    "8000": { "label": "portal" },
+    "8069": { "label": "Odoo (test)" }
+  },
+  "postCreateCommand": "pip install -r requirements-dev.txt",
+  "remoteEnv": {
+    "PORTAL_SECRET": "dev-only-not-a-real-secret"
+  }
+}

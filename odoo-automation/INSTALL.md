@@ -150,11 +150,12 @@ provider: see `tests/test_mail_setup.py`.)
 
 ### Odoo
 
-Odoo Community is free and has no API restriction. One command gives you a throwaway copy:
+Odoo Community is free and, unlike Odoo Online, has no plan gate on the external API — so a
+throwaway copy answers the same calls the client's will. Worth having one: the alternative is
+finding out what their server thinks of an entry by sending it a real night.
 
 ```bash
-docker run -d --name odoo-db -e POSTGRES_PASSWORD=odoo -e POSTGRES_USER=odoo postgres:16
-docker run -d --name odoo -p 8069:8069 --link odoo-db:db odoo:17
+docker compose -f dev/odoo-compose.yml up -d
 ```
 
 Open <http://localhost:8069>, create a database, install **Invoicing**, then create a user with
@@ -164,6 +165,27 @@ Accounting rights and an API key under *Preferences → Account Security*. Point
 ODOO_URL=http://localhost:8069 ODOO_DB=<database> ODOO_TRANSPORT=xmlrpc \
 ODOO_USER=<login> ODOO_API_KEY=<key> DELIVERY_MODE=odoo python3 -m portal serve
 ```
+
+Then press **Check the Odoo connection** on Settings, which asks that server everything a night
+needs and reports it in one go. `docker compose -f dev/odoo-compose.yml down -v` removes it.
+
+**When the machine in front of you is not yours to install Docker on.** A day-job laptop is a
+common and good reason not to. Three ways, cheapest first:
+
+1. **GitHub Codespaces.** `.devcontainer/` in this repository is set up for it: open the repo in
+   a codespace and you get Python, Docker and both ports forwarded, on GitHub's machine rather
+   than yours. Personal Free accounts include 120 core hours and 15 GB a month — roughly 60
+   hours on a 2-core box — which is far more than this needs. **Stop the codespace when you
+   finish**, because storage keeps counting while it exists.
+2. **A small cloud box.** Any $5-a-month VPS runs the compose file above. Delete it when the
+   integration is proven.
+3. **Render**, where the portal already lives. It will work — a Docker service, a managed
+   database and a disk for the filestore — but Odoo wants around 2 GB, so it is a paid instance
+   rather than the free tier, and you are then running somebody's accounting system. Fine for a
+   week of testing; not somewhere to leave it.
+
+Whichever you pick, it is a rehearsal room and not a stage. Champion's Odoo is hosted by Odoo,
+and nothing built on a test copy moves across to it.
 
 `python3 -m pms_to_odoo check` says whether it connected.
 
