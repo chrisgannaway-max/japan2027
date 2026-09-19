@@ -21,7 +21,7 @@
       <a class="btn secondary" href="/runs/{{ run.id }}/csv?fmt=odoo">Odoo import CSV</a>
       <a class="btn secondary" href="/runs/{{ run.id }}/csv?fmt=flat">Flat CSV</a>
       {% if odoo_enabled and not run.posted_at %}
-      <form method="post" action="/runs/{{ run.id }}/post" class="row"><select id="post_now" name="post_now"><option value="no">create as draft in Odoo</option><option value="yes">create and post in Odoo</option></select><button class="btn" type="submit">Send to Odoo</button></form>
+      <form method="post" action="/runs/{{ run.id }}/post" class="row"><select id="post_now" name="post_now"><option value="no">create as draft in Odoo</option><option value="yes">create and post in Odoo</option></select><button class="btn" type="submit">Send to Odoo</button>{% if odoo_demo %}<span class="pill warn" title="ODOO_TRANSPORT=demo: nothing reaches a real Odoo">DEMO</span>{% endif %}</form>
       {% endif %}
     {% endif %}
     {% if run.status == 'unmapped' %}<a class="btn" href="/admin/mapping/{{ run.id }}">Map the missing lines ({{ res.unmapped|length }})</a>{% endif %}

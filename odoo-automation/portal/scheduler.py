@@ -20,7 +20,7 @@ import os
 import threading
 import time as _time
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Optional
 
 from . import clock, daily, mail, poster
@@ -54,17 +54,51 @@ def business_date_for(now: datetime) -> date:
     return now.date() - timedelta(days=1)
 
 
+def report_time(state) -> tuple[time, str]:
+    """When the morning list goes out, and what decided that.
+
+    REPORT_AT if somebody set one; otherwise the latest cut-off among the properties, because
+    a list sent before a hotel was due would call it late when it is not.
+    """
+    raw = mail.setting("REPORT_AT").strip()
+    if raw:
+        try:
+            hh, _, mm = raw.partition(":")
+            return time(int(hh), int(mm or 0)), "set on the Settings page"
+        except ValueError:
+            pass                  # a typo must not stop the report going out
+    if not state.props:
+        return daily.DEFAULT_DUE_BY, "no properties yet"
+    latest = max(daily.due_by(p) for p in state.props.values())
+    return latest, "the latest property cut-off"
+
+
 def report_is_due(state, now: datetime) -> tuple[bool, str]:
-    """After every property's cut-off, and not already sent for that night."""
+    """After the report time, and not already sent for that night."""
     day = business_date_for(now)
     if str(state.db.settings().get(LAST_REPORT_KEY, "")) == day.isoformat():
         return False, "already sent"
     if not state.props:
         return False, "no properties"
-    latest = max(daily.due_by(p) for p in state.props.values())
-    if now < datetime.combine(now.date(), latest):
-        return False, f"before the {latest.strftime('%H:%M')} cut-off"
+    at, _ = report_time(state)
+    if now < datetime.combine(now.date(), at):
+        return False, f"before the {at.strftime('%H:%M')} send time"
     return True, ""
+
+
+def status(state, now: Optional[datetime] = None) -> dict:
+    """What the Settings page shows: is the loop running, when does the list go, and why not yet."""
+    now = now or clock.now()
+    at, why_at = report_time(state)
+    due, why = report_is_due(state, now)
+    sent_for = str(state.db.settings().get(LAST_REPORT_KEY, ""))
+    next_send = datetime.combine(now.date(), at)
+    if now >= next_send:
+        next_send += timedelta(days=1)
+    return {"on": is_on(), "interval": INTERVAL_SECONDS, "at": at.strftime("%H:%M"),
+            "why_at": why_at, "due_now": due, "why": why, "sent_for": sent_for,
+            "next_send": next_send, "to": mail.setting("REPORT_TO"),
+            "mail_ready": mail.configured(), "business_date": business_date_for(now)}
 
 
 def send_report(state, now: Optional[datetime] = None, force: bool = False) -> tuple[bool, str]:
@@ -103,8 +137,12 @@ def tick(state, now: Optional[datetime] = None) -> TickResult:
     return out
 
 
+def is_on() -> bool:
+    return os.environ.get("SCHEDULER", "off").lower() in ("1", "on", "yes", "true")
+
+
 def start(state) -> Optional[threading.Thread]:
-    if os.environ.get("SCHEDULER", "off").lower() not in ("1", "on", "yes", "true"):
+    if not is_on():
         return None
 
     def loop() -> None:

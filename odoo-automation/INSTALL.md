@@ -346,7 +346,7 @@ back into the page.
 | `ODOO_URL` | `https://company.odoo.com`, or the on-premise address |
 | `ODOO_API_KEY` | API key of a dedicated bot user (*Preferences → Account Security*) |
 | `ODOO_DB` | database name; needed when the server hosts several |
-| `ODOO_TRANSPORT` | `json2` (default, Odoo 19+) or `xmlrpc` (Odoo 18 and earlier) |
+| `ODOO_TRANSPORT` | `json2` (default, Odoo 19+), `xmlrpc` (Odoo 18 and earlier), or `demo` (a stand-in, below) |
 | `ODOO_USER` | the bot user's login, `xmlrpc` only |
 | `DELIVERY_MODE` | `odoo` to offer *Send to Odoo*; `download` (default) for CSV |
 
@@ -447,7 +447,27 @@ in Central. To move it, set `TIMEZONE` to any name from the IANA database and re
 startup line says which zone it took and what time it is there. An unknown name falls back to
 UTC with a warning rather than refusing to start.
 
-## 16. Every setting
+## 16. Rehearsing Odoo before there is an Odoo
+
+Set `DELIVERY_MODE=odoo` with `ODOO_TRANSPORT=demo` and no URL or key, and the portal behaves
+exactly as it will against the real server: *Send to Odoo* works, the entry comes back with a
+number, the run turns **posted**, and the same night sent twice finds the first instead of
+writing a second. Nothing leaves the process.
+
+It is there for the weeks before the client's Odoo exists — to prove that a night which parsed,
+mapped and balanced survives the trip to the API and back, and to show somebody the finished
+thing without asking for credentials first.
+
+Two things to know. It **invents master data on demand**: ask it for GL account 4010 or a
+journal called NA and it makes one up, so a rehearsal fails on the things that will really fail
+(an entry that does not balance, a night already sent) rather than on a chart of accounts
+nobody has loaded. And it **forgets everything on restart**, while the portal's own record does
+not — a run can say "posted as NA/DEMO/0001" long after the stand-in has forgotten writing it.
+
+Every screen that can show it says `DEMO`, and so does the startup line. Take the variable away
+and the real connection is the only thing left.
+
+## 17. Every setting
 
 | Variable | Default | What it does |
 |---|---|---|
@@ -470,6 +490,7 @@ UTC with a warning rather than refusing to start.
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | — | all three: Supabase Storage instead of the disk |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_SECURITY` / `SMTP_REPLY_TO` | — | outgoing mail; also settable on `/admin` |
 | `ODOO_URL` / `ODOO_API_KEY` / `ODOO_DB` / `ODOO_TRANSPORT` / `ODOO_USER` | — | the Odoo connection |
+| `REPORT_AT` | unset | `06:30` to fix when the morning list goes out; unset means after the latest property cut-off. Also settable on `/admin` |
 | `ODOO_AUTOPOST` | `no` | `yes` posts entries in Odoo on arrival instead of leaving drafts; also switchable on `/admin` unless pinned here |
 | `INTAKE_TOKEN` | unset | shared secret for the inbound-mail webhook; **unset means the route is off** |
 | `INVOICE_READER` | rules | `claude` to use the AI invoice reader |
@@ -618,7 +639,20 @@ restart cannot send it twice.
 The cut-off is 06:00, overridden per property with `due_by: "05:30"` in its configuration. A
 property with nothing yet reads as *not due* before its cut-off and *nothing has arrived* after.
 
-06:00 means six in the morning **where the hotels are**, not on the host. See *Time* below.
+06:00 means six in the morning **where the hotels are**, not on the host. See *Time* above.
+
+By default the list goes out after the latest cut-off among the properties, so no hotel is
+called late before it was due. Set a time outright with `REPORT_AT`, or on the **Settings**
+page under *On a timer*, which also shows when the list will next go, what is still waiting
+for Odoo, and two buttons that do either job this minute rather than at the next pass:
+
+* **Send the morning list now** — the same list, sent for today, whatever the time is.
+* **Send waiting nights to Odoo now** — the same call the loop makes. Use it after an Odoo
+  outage: an unreachable server never counts against a night's five attempts, so the nights
+  are still queued and one press clears them.
+
+Neither button needs `SCHEDULER=on`. If you would rather not run the loop at all, these two
+and the cron commands below cover everything it does.
 
 If you would rather use the host's own scheduler than the built-in loop, leave `SCHEDULER` off
 and run `python3 -m portal post` and `python3 -m portal report --send` from cron.

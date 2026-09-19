@@ -21,8 +21,10 @@ from email.message import EmailMessage
 from typing import Optional
 
 
+#: REPORT_TO and REPORT_AT are not about sending mail, but they are settings somebody changes
+#: from a page and may want pinned on the host, which is exactly what this mechanism is for.
 KEYS = ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_SECURITY",
-        "SMTP_REPLY_TO", "PORTAL_BASE_URL", "REPORT_TO")
+        "SMTP_REPLY_TO", "PORTAL_BASE_URL", "REPORT_TO", "REPORT_AT")
 SECRET_KEYS = ("SMTP_PASSWORD",)
 
 #: filled in from the database by the portal; the environment always wins over it, so a

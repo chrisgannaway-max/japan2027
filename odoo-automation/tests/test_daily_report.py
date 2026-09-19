@@ -112,7 +112,7 @@ def test_the_report_waits_for_the_last_cut_off_then_goes_once(db, props, monkeyp
     st = FakeState(db, props)
 
     early = scheduler.tick(st, datetime(2025, 11, 11, 5, 30))
-    assert not early.report_sent and "before the 06:00 cut-off" in early.report_why
+    assert not early.report_sent and "before the 06:00 send time" in early.report_why
     assert sent == []
 
     on_time = scheduler.tick(st, NEXT_MORNING)
@@ -124,6 +124,39 @@ def test_the_report_waits_for_the_last_cut_off_then_goes_once(db, props, monkeyp
     again = scheduler.tick(st, datetime(2025, 11, 11, 9, 0))
     assert not again.report_sent and again.report_why == "already sent"
     assert len(sent) == 1                                   # once a day, not once a tick
+
+
+def test_the_send_time_can_be_set_outright(db, props, monkeypatch):
+    """REPORT_AT overrides the derived cut-off, and a typo in it does not stop the list."""
+    sent: list[tuple] = []
+    monkeypatch.setattr(mail, "configured", lambda: True)
+    monkeypatch.setattr(mail, "send_reporting", lambda to, s, b: (sent.append((to, s, b)), (True, ""))[1])
+    monkeypatch.setenv("REPORT_TO", "office@champion.example")
+    st = FakeState(db, props)
+
+    monkeypatch.setenv("REPORT_AT", "08:30")
+    assert scheduler.report_time(st) == (time(8, 30), "set on the Settings page")
+    at_seven = scheduler.tick(st, datetime(2025, 11, 11, 7, 0))
+    assert not at_seven.report_sent and "before the 08:30 send time" in at_seven.report_why
+    assert scheduler.tick(st, datetime(2025, 11, 11, 8, 45)).report_sent
+
+    monkeypatch.setenv("REPORT_AT", "half eight")
+    at, why = scheduler.report_time(st)
+    assert at == time(6, 0) and why == "the latest property cut-off"
+
+
+def test_status_says_when_the_list_goes_and_why_not_yet(db, props, monkeypatch):
+    monkeypatch.delenv("REPORT_AT", raising=False)
+    monkeypatch.setenv("REPORT_TO", "office@champion.example")
+    st = FakeState(db, props)
+    s = scheduler.status(st, datetime(2025, 11, 11, 5, 30))
+    assert s["at"] == "06:00" and s["why_at"] == "the latest property cut-off"
+    assert s["due_now"] is False and "before the 06:00" in s["why"]
+    assert s["next_send"] == datetime(2025, 11, 11, 6, 0)          # later today
+    assert s["to"] == "office@champion.example" and s["sent_for"] == ""
+
+    after = scheduler.status(st, datetime(2025, 11, 11, 6, 30))
+    assert after["due_now"] is True and after["next_send"] == datetime(2025, 11, 12, 6, 0)
 
 
 def test_no_address_means_no_report_and_a_reason_not_a_crash(db, props, monkeypatch):

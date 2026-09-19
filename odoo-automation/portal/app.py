@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote_plus
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -60,6 +61,7 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 # `| when` (or `| when_short`) so no page has to remember that.
 templates.env.filters["when"] = clock.show
 templates.env.filters["when_short"] = clock.show_short
+templates.env.filters["at"] = clock.show_local     # a time already on the hotels' clock
 templates.env.globals["TZ_NAME"] = str(clock.TZ)
 
 
@@ -123,7 +125,12 @@ class State:
         self.signer = SessionSigner()
         self.pending = SessionSigner(max_age=300)     # the 5 minutes between password and MFA code
         self.throttle = LoginThrottle()
-        self.odoo_enabled = bool(os.environ.get("ODOO_URL") and os.environ.get("ODOO_API_KEY"))
+        self.odoo_transport = os.environ.get("ODOO_TRANSPORT", "json2").lower()
+        #: a stand-in Odoo, for rehearsing the whole path before the client has a server.
+        #: Everything downstream treats it as configured, and every screen says DEMO.
+        self.odoo_demo = self.odoo_transport == "demo"
+        self.odoo_enabled = self.odoo_demo or bool(
+            os.environ.get("ODOO_URL") and os.environ.get("ODOO_API_KEY"))
         self.reload_config()
         if self.autopost:
             print("[portal] entries will be POSTED in Odoo on arrival, not left as drafts")
@@ -131,6 +138,8 @@ class State:
               f"files: {self.storage.describe()}")
         print(f"[portal] cut-offs and times on screen are {clock.TZ}; it is "
               f"{clock.now():%H:%M} there now")
+        if self.odoo_demo:
+            print("[portal] ODOO_TRANSPORT=demo: entries go to a stand-in, not a real Odoo")
 
     @property
     def autopost_locked(self) -> bool:
@@ -217,6 +226,7 @@ def visible_properties(u: User) -> dict[str, dict]:
 def render(request: Request, name: str, **ctx) -> HTMLResponse:
     ctx.setdefault("user", current_user(request))
     ctx.setdefault("odoo_enabled", state.odoo_enabled)
+    ctx.setdefault("odoo_demo", state.odoo_demo)
     ctx.setdefault("invoice_reader", reader_in_use())
     ctx.setdefault("store_mode", state.mode)
     ctx.setdefault("delivery", state.delivery)
@@ -638,6 +648,48 @@ def daily_send(user: User = Depends(require_admin)):
     return RedirectResponse("/admin?" + ("msg=Report+sent" if sent else f"err={why}"), status_code=303)
 
 
+@app.post("/admin/queue/run")
+def queue_run_now(user: User = Depends(require_admin)):
+    """Try the posting queue this minute rather than at the next pass.
+
+    The same call the loop makes, so what happens here is what would have happened on its own.
+    """
+    if state.delivery != "odoo" or not state.odoo_enabled:
+        return RedirectResponse("/admin?err=Set+DELIVERY_MODE%3Dodoo+with+an+Odoo+connection+first",
+                                status_code=303)
+    try:
+        summary = poster.post_due(state.db, autopost=state.autopost)
+    except Exception as e:                       # noqa: BLE001
+        return RedirectResponse(f"/admin?err={quote_plus(f'Queue run failed: {e}')}", status_code=303)
+    done, already, failed = len(summary.posted), len(summary.existing), len(summary.failed)
+    if not (done or already or failed):
+        return RedirectResponse("/admin?msg=Nothing+was+waiting+to+go", status_code=303)
+    bits = ([f"{done} sent to Odoo"] if done else []) \
+        + ([f"{already} already there"] if already else []) \
+        + ([f"{failed} failed"] if failed else [])
+    return RedirectResponse(f"/admin?msg={quote_plus(', '.join(bits))}", status_code=303)
+
+
+@app.post("/admin/report-at")
+def set_report_at(user: User = Depends(require_admin), report_at: str = Form("")):
+    """The time the morning list goes out.  Blank goes back to the latest property cut-off."""
+    raw = report_at.strip()
+    if raw:
+        try:
+            hh, _, mm = raw.partition(":")
+            if not (0 <= int(hh) <= 23 and 0 <= int(mm or 0) <= 59):
+                raise ValueError
+        except ValueError:
+            return RedirectResponse("/admin?err=Give+a+time+as+HH%3AMM%2C+e.g.+06%3A30",
+                                    status_code=303)
+    if os.environ.get("REPORT_AT"):
+        return RedirectResponse("/admin?err=REPORT_AT+is+pinned+on+the+host", status_code=303)
+    state.db.save_settings({"REPORT_AT": raw}, user.username)
+    mail.set_stored(state.db.settings())
+    where = f"at {raw}" if raw else "back to the latest property cut-off"
+    return RedirectResponse(f"/admin?msg={quote_plus('Morning list ' + where)}", status_code=303)
+
+
 @app.get("/health", response_class=PlainTextResponse)
 def health():
     return "ok"
@@ -874,7 +926,10 @@ def require_db_store():
 def admin_home(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = ""):
     ctx = dict(msg=msg, err=err, config_path=str(CONFIG), users_path=str(USERS),
                accounts_count=state.db.accounts_info()["count"],
-               autopost=state.autopost, autopost_locked=state.autopost_locked)
+               autopost=state.autopost, autopost_locked=state.autopost_locked,
+               sched=scheduler.status(state), report_at=mail.setting("REPORT_AT"),
+               report_at_locked=bool(os.environ.get("REPORT_AT")),
+               queued=len(state.db.runs_awaiting_post()) if state.delivery == "odoo" else 0)
     if state.store is not None:
         ctx["properties"] = [state.store.get_property(c) | {"enabled": state.store.get_property(c)["enabled"]} for c in
                              state.store.properties(include_disabled=True)]

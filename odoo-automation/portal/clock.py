@@ -103,6 +103,18 @@ def show(value: Union[str, datetime, None], fmt: str = "%m/%d/%Y %I:%M %p %Z") -
     return re.sub(r"\b0(\d:)", r"\1", out)
 
 
+def show_local(dt: Optional[datetime], fmt: str = "%m/%d %I:%M %p") -> str:
+    """A datetime that is *already* the hotels' wall clock, printed the same way.
+
+    `show()` reads its argument as UTC, which is right for a stored stamp and wrong for the
+    output of `now()`.  Keeping them as two functions is clearer than a flag.
+    """
+    if dt is None:
+        return ""
+    out = dt.strftime(fmt).replace("AM", "am").replace("PM", "pm")
+    return re.sub(r"\b0(\d:)", r"\1", out)
+
+
 def show_short(value: Union[str, datetime, None]) -> str:
     """The same, without the year: "09/18 5:38 pm CDT"."""
     return show(value, "%m/%d %I:%M %p %Z")

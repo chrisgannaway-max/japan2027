@@ -45,6 +45,13 @@ def test_show_prints_a_stored_stamp_in_central_time(central):
     assert central.show("2026-09-19T00:30:00").startswith("09/18/2026 7:30 pm")
 
 
+def test_a_time_already_on_the_hotels_clock_is_not_shifted_again(central):
+    from datetime import datetime as dt
+    # scheduler.status() hands the page the next send time as a local wall clock, not a stamp.
+    assert central.show_local(dt(2026, 9, 19, 6, 0)) == "09/19 6:00 am"
+    assert central.show_local(None) == ""
+
+
 def test_show_leaves_alone_what_is_not_a_stamp(central):
     assert central.show(None) == "" and central.show("") == ""
     assert central.show("not a date") == "not a date"      # a page prints what it has

@@ -71,6 +71,13 @@ class Json2Transport:
             except Exception:  # noqa: BLE001 - best effort error decoding
                 msg = f"HTTP {e.code} {e.reason}"
             raise OdooError(f"{model}.{method} failed: {msg}") from e
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            # The server is down, the name does not resolve, the certificate is wrong.  Not the
+            # fault of the night being sent, so it has to arrive as an OdooError: that is what
+            # tells the queue to leave every night where it is and try again later, instead of
+            # counting a failed attempt against each one.
+            raise OdooError(f"Could not reach Odoo at {self.base}: "
+                            f"{getattr(e, 'reason', None) or e}") from e
 
 
 class XmlRpcTransport:
@@ -81,7 +88,10 @@ class XmlRpcTransport:
         self.secret = password_or_api_key
         self._common = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/common", allow_none=True)
         self._models = xmlrpc.client.ServerProxy(f"{self.url}/xmlrpc/2/object", allow_none=True)
-        self.uid = self._common.authenticate(self.db, self.username, self.secret, {})
+        try:
+            self.uid = self._common.authenticate(self.db, self.username, self.secret, {})
+        except (xmlrpc.client.ProtocolError, OSError) as e:
+            raise OdooError(f"Could not reach Odoo at {self.url}: {e}") from e
         if not self.uid:
             raise OdooError("XML-RPC authentication failed (check database, login and API key)")
 
@@ -95,6 +105,8 @@ class XmlRpcTransport:
             return self._models.execute_kw(self.db, self.uid, self.secret, model, method, args, kw)
         except xmlrpc.client.Fault as e:
             raise OdooError(f"{model}.{method} failed: {e.faultString.splitlines()[-1]}") from e
+        except (xmlrpc.client.ProtocolError, OSError) as e:
+            raise OdooError(f"Could not reach Odoo at {self.url}: {e}") from e
 
 
 # --------------------------------------------------------------------------- high level
@@ -111,11 +123,16 @@ class OdooSettings:
         """Read ODOO_URL, ODOO_DB, ODOO_API_KEY, ODOO_TRANSPORT, ODOO_USER from the environment."""
         url = os.environ.get("ODOO_URL")
         key = os.environ.get("ODOO_API_KEY")
+        transport = os.environ.get("ODOO_TRANSPORT", "json2")
+        if transport == "demo":
+            # Nothing to connect to, so nothing to ask for: the point of the demo transport is
+            # to rehearse the whole path before there are any credentials.
+            return cls(url=url or "demo://odoo", database=os.environ.get("ODOO_DB"),
+                       api_key=key or "demo", transport="demo")
         if not url or not key:
             raise OdooError("Set ODOO_URL and ODOO_API_KEY (see README - Configuration)")
         return cls(url=url, database=os.environ.get("ODOO_DB"), api_key=key,
-                   transport=os.environ.get("ODOO_TRANSPORT", "json2"),
-                   username=os.environ.get("ODOO_USER"))
+                   transport=transport, username=os.environ.get("ODOO_USER"))
 
 
 class OdooClient:
@@ -127,6 +144,9 @@ class OdooClient:
 
     @classmethod
     def connect(cls, s: OdooSettings) -> "OdooClient":
+        if s.transport == "demo":
+            from .odoo_demo import transport as demo_transport
+            return cls(demo_transport(s))
         if s.transport == "xmlrpc":
             if not (s.database and s.username):
                 raise OdooError("xmlrpc transport needs ODOO_DB and ODOO_USER")

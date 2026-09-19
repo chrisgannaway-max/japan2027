@@ -12,8 +12,44 @@
   {% endif %}
 </div>
 <div class="card">
+  <h2>On a timer: <span class="pill {{ 'ok' if sched.on else 'muted' }}">{{ 'running' if sched.on else 'off' }}</span></h2>
+  {% if sched.on %}
+    <p class="small">Checks every {{ sched.interval // 60 }} minutes: sends any balanced night still waiting for Odoo, then the morning list once a day.</p>
+  {% else %}
+    <p class="small">Nothing runs on its own. Set <code>SCHEDULER=on</code> on the host to start the loop; the buttons below work either way.</p>
+  {% endif %}
+  <div class="tablewrap"><table>
+    <tbody>
+      <tr><td>Morning list</td>
+          <td><b>{{ sched.at }}</b> <span class="small">({{ sched.why_at }})</span></td>
+          <td class="small">{% if sched.sent_for %}last sent for {{ sched.sent_for }}{% else %}not sent yet{% endif %}{% if not sched.due_now %} &middot; {{ sched.why }}{% endif %}</td></tr>
+      <tr><td>Next send</td>
+          <td><b>{{ sched.next_send | at }}</b></td>
+          <td class="small">{% if sched.to %}to {{ sched.to }}{% else %}<b>nowhere yet</b> &mdash; set an address on the <a href="/admin/email">E-mail setup</a> page{% endif %}{% if not sched.mail_ready %} &middot; no mail server configured{% endif %}</td></tr>
+      <tr><td>Waiting for Odoo</td>
+          <td><b>{{ queued }}</b> night{{ '' if queued == 1 else 's' }}</td>
+          <td class="small">{% if delivery != 'odoo' %}delivery is <b>{{ delivery }}</b>, so nothing is queued{% elif not odoo_enabled %}no Odoo connection configured{% endif %}</td></tr>
+    </tbody></table></div>
+  <div class="row">
+    <form method="post" action="/daily/send"><button class="btn secondary" type="submit">Send the morning list now</button></form>
+    <form method="post" action="/admin/queue/run"><button class="btn secondary" type="submit">Send waiting nights to Odoo now</button></form>
+    <a class="btn secondary" href="/daily">Read the list without sending it</a>
+  </div>
+  <h3>Change the send time</h3>
+  {% if report_at_locked %}
+    <p class="small">Pinned on the host with <code>REPORT_AT</code>, so it cannot be changed here.</p>
+  {% else %}
+    <form method="post" action="/admin/report-at" class="row">
+      <label>Send the morning list at <input id="report_at" name="report_at" value="{{ report_at }}" placeholder="06:00" size="6"></label>
+      <button class="btn secondary" type="submit">Save</button>
+    </form>
+    <p class="small">{{ TZ_NAME }} time. Leave it blank to go back to the latest property cut-off, so no hotel is called late before it was due.</p>
+  {% endif %}
+</div>
+<div class="card">
   <h2>Entries in Odoo: <span class="pill {{ 'warn' if autopost else 'ok' }}">{{ 'posted on arrival' if autopost else 'drafts for review' }}</span></h2>
   <p class="small">A draft can be read and deleted. A posted entry needs a reversing entry, which stays in the ledger for good. Start with drafts; turn this on once the numbers have been right for a while.</p>
+  {% if odoo_demo %}<p class="small"><span class="pill warn">DEMO</span> <code>ODOO_TRANSPORT=demo</code>: entries are kept in this process and reach no Odoo server. Good for rehearsing the whole path before the real connection exists &mdash; nothing you see here is in anybody's ledger.</p>{% endif %}
   {% if autopost_locked %}
     <p class="small">Pinned on the host with <code>ODOO_AUTOPOST</code>, so it cannot be changed here.</p>
   {% else %}
