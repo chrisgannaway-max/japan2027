@@ -30,7 +30,10 @@ part of this project. Adding one later means writing a parser, not changing a se
 **The Odoo side has been run against a real server.** On 19 September 2026 an Embassy Suites
 night was parsed, mapped and written into an Odoo 17 through the XML-RPC API as
 `PEP-OKCON-2025-11-10`, balancing at $92,570.78 on both sides — the same figure the test suite
-asserts against the sample. Until then the Odoo client had only ever spoken to a fake, and two
+asserts against the sample, with every line carrying the property's analytic account. Sending
+the same night again found the entry it had already written instead of creating a second one,
+which is the property that matters most: it is what stops a re-sent e-mail, a double upload or
+a retry after a timeout booking a night twice in the client's books. Until then the Odoo client had only ever spoken to a fake, and two
 bugs were waiting in the gap:
 
 * **`create` sent its values by name.** Odoo's XML-RPC dispatcher reads them out of the first
