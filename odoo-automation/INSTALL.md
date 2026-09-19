@@ -2,8 +2,8 @@
 
 Two programs in one repository:
 
-* **the portal** (`portal/`) — the website. Hotel managers upload the night-audit pack and
-  vendor invoices; the office downloads the day's entries or sends them straight to Odoo.
+* **the portal** (`portal/`) — the website. Hotel managers upload the night-audit pack; the
+  office downloads the day's entries or sends them straight to Odoo.
 * **the reader** (`pms_to_odoo/`) — the parsers and a command line. The portal calls it, and
   you can run it on its own to see exactly what a report turns into.
 
@@ -81,7 +81,7 @@ Two more decide what the site *is*:
 | Variable | Default | Set it when |
 |---|---|---|
 | `HOTEL_UPLOADS` | `on` — hotels sign in and upload | packs arrive by e-mail instead; `off` closes the upload page and hides its link |
-| `INVOICES` | `off` | the client wants vendor bills read as well as night audits |
+| `INVOICES` | `off` — vendor bills are Odoo's job, not this tool's | only if Odoo's own per-document digitization is ever not what they want |
 
 `HOTEL_UPLOADS=off` hides the hotel side rather than removing it. A group that later wants its
 GMs to see their own nights turns one variable back on, which is far cheaper than building it a
@@ -443,17 +443,16 @@ earlier run instead of adding to it.
 ## 11. The daily routine
 
 **Each hotel, after the night audit:** sign in, upload the pack on the Night audit page. The
-screen says immediately whether it balanced. A report that is really an invoice can be moved
-across with one button.
+screen says immediately whether it balanced.
 
 **The office, each morning:** the dashboard lists every property for that business date —
 uploaded and balanced, uploaded with a problem, or nothing yet. Download the day's CSV, or send
 the day to Odoo. A day already downloaded is not handed out again unless you ask for it
 explicitly, so nothing gets booked twice by accident.
 
-**Invoices:** upload, check the vendor and total the reader found, and it becomes a draft bill
-in Odoo. The expense account is assigned automatically — from the vendor's history, or the
-category rules — so the office does not assign accounts by hand.
+**Invoices** are not part of this. Odoo digitizes vendor bills itself; `INVOICES` is off, so
+the pages are not served and the link is not in the navigation. The reader is still in the tree,
+dormant — see the README for what it does if it is ever switched on.
 
 **Who has not reported:** `/missing` shows one row per property and one column per night, with
 a CSV of the gaps.
@@ -578,7 +577,7 @@ and the real connection is the only thing left.
 | `PORTAL_MFA_ROLES` | empty | e.g. `admin` to require two-step sign-in for admins |
 | `DELIVERY_MODE` | `download` | `odoo` to post from the dashboard |
 | `HOTEL_UPLOADS` | `on` | `off` where packs arrive by e-mail and only the office signs in: the upload page closes and its link goes |
-| `INVOICES` | `off` | `on` to enable the vendor-invoice pages |
+| `INVOICES` | `off` | the dormant vendor-invoice pages; Odoo digitizes bills itself, so leave it off |
 | `SCHEDULER` | `off` | `on` to drain the posting queue and send the morning list on a timer |
 | `SCHEDULER_INTERVAL` | `600` | seconds between passes |
 | `REPORT_TO` | unset | where the morning list and the held-night notices go; also settable on the E-mail page |

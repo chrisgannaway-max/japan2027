@@ -66,3 +66,37 @@ def test_the_move_to_invoices_button_is_gone_when_invoices_are_off(tmp_path, mon
     c, app_module = make(tmp_path, monkeypatch)                    # invoices off by default
     login(c, "admin", "admin")
     assert c.post("/runs/1/to-invoice").status_code == 404
+
+
+def test_with_invoices_off_no_page_so_much_as_mentions_them(tmp_path, monkeypatch):
+    """The client uses Odoo's own digitization, so this side is off and should be invisible.
+
+    Not a security boundary -- the routes already 404 -- but a scope one. A switch on a screen
+    for something nobody asked for is a question nobody needs to answer.
+    """
+    import re
+    c, _ = make(tmp_path, monkeypatch)
+    login(c, "admin", "admin")
+    for page in ("/", "/upload", "/admin", "/admin/email", "/daily", "/missing", "/account",
+                 "/admin/accounts"):
+        body = c.get(page).text
+        assert c.get(page).status_code == 200, page
+        assert not re.search(r"invoice", body, re.I), f"{page} mentions invoices"
+    for gone in ("/invoices", "/invoices/1"):
+        assert c.get(gone).status_code == 404
+    assert c.post("/runs/1/to-invoice").status_code == 404
+
+
+def test_a_vendor_bill_uploaded_by_mistake_still_says_what_it_is(tmp_path, monkeypatch):
+    """The one place the word survives, and it should: it tells a GM why nothing was booked.
+
+    It names what the file is, not a feature that could be turned on.
+    """
+    c, _ = make(tmp_path, monkeypatch)
+    login(c, "admin", "admin")
+    with open(FIXTURES / "invoices" / "acme_linen_INV-1001.txt", "rb") as fh:
+        r = c.post("/upload", data={"property_code": "OKCON"},
+                   files=[("files", ("bill.txt", fh, "text/plain"))])
+    assert "Looks like an invoice" in r.text
+    assert "Send it to Invoices" not in r.text          # no way in, and nothing offered
+    assert "/invoices" not in r.text

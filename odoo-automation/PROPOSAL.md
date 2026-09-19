@@ -54,20 +54,16 @@ e-mails can therefore be processed in one pass.
 **Interim path.** The GM spreadsheet can feed the same pipeline (cell map config) so
 double entry stops before the mapping for every property is signed off.
 
-## 4. Vendor invoices
+## 4. Vendor invoices — out of scope
 
-**A. Odoo's built-in digitization.** Bills e-mailed to an Odoo alias are OCR'd with paid IAP
-credits and created as drafts. No code, per-page cost, good for clean typed invoices. Vendor
-matching and account coding still need review.
+Odoo digitizes vendor bills itself: e-mail them to an alias and they are OCR'd and created as
+drafts, billed per document in IAP credits. That is the right place for them, and this project
+does not touch them.
 
-**B. Claude-based extraction (built).** The PDF or photo is read into a strict schema (vendor,
-tax id, number, dates, lines, totals, category hint, confidence, review notes), checked
-arithmetically, matched to the Odoo vendor by tax id, e-mail or name, and created as a draft
-bill with the file attached and the notes on the bill. Handles scans and odd layouts; a few
-cents per invoice.
-
-Recommendation: start with B for control over vendor matching and expense defaults; keep A in
-mind if the preference is to stay entirely inside Odoo. Bills stay in draft until approved.
+The portal ships with the invoice side switched off — no pages, no navigation link, no code
+running. It stays in the tree rather than being deleted because it is already written and
+tested, and switching it on is one setting if Odoo's per-document cost ever makes that worth
+revisiting.
 
 ## 5. Odoo specifics that affect the design
 

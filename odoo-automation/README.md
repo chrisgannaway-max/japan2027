@@ -1,14 +1,13 @@
-# PMS night audit and vendor invoices -> Odoo Accounting
+# PMS night audit -> Odoo Accounting
 
-Automation for two manual processes at the hotels:
+Each property's PMS prints a night-audit pack. Today GMs re-key it into a spreadsheet and
+accounting re-keys that into the books. This tool reads the pack, maps every line to a GL
+account, checks the entry balances to the cent, and creates it in Odoo — draft by default,
+posted if you ask.
 
-1. **Daily night-audit entries.** Each property's PMS prints a night-audit pack. Today GMs
-   re-key it into a spreadsheet and accounting re-keys that into the books. This tool parses
-   the pack, maps every line to a GL account, checks the entry balances, and creates it in
-   Odoo (draft by default, posted if you ask).
-2. **Vendor invoices.** A PDF/photo of an invoice is read by Claude into a validated structure
-   (vendor, number, dates, lines, totals), matched to the vendor in Odoo and created as a
-   **draft vendor bill** with the original file attached for review.
+That is the whole job. Vendor invoices are handled in Odoo itself, by its own digitization;
+this tool does not touch them. There is a dormant invoice reader in here behind a switch that
+is off — see *Vendor invoices* near the end for what it is and why it is still in the tree.
 
 ## Status
 
@@ -295,7 +294,17 @@ prints one), are inserted above any hand-written catch-all so they win, and are 
 before they are saved. Comments in the file are preserved, so a mapping stays readable
 whether it was written by hand or through the portal.
 
-## Vendor invoices (no AI required)
+## Vendor invoices — off, and not part of this project
+
+**Odoo digitizes vendor bills itself**, so nothing here is used for them. `INVOICES` is `off`
+by default: the pages are not served, the link is not in the navigation, and no invoice code
+runs. A deployment behaves as if this section did not exist.
+
+It is still in the tree because it is written and tested, and because Odoo's digitization is
+billed per document — if that ever stops being the right trade, this is here rather than
+needing to be built. Turning it on is `INVOICES=on`; nothing else changes.
+
+The rest of this section is what it does when it is on.
 
 Managers upload an invoice on `/invoices`; the reader pre-fills the fields; the expense
 account is assigned automatically; the bill is **ready** at once if every field is present
