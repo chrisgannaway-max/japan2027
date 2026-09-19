@@ -2,18 +2,41 @@
 {% block body %}
 <h1>E-mail setup</h1>
 {% if msg %}<p class="pill ok">{{ msg }}</p>{% endif %}
-{% if err %}<p class="err">{{ err }}</p>{% endif %}
+{% if err %}<p class="msg err">{{ err }}</p>{% endif %}
+{% if note %}<p class="small">{{ note }}</p>{% endif %}
 
 <div class="card">
   {% if configured %}
-    <p><span class="pill ok">Ready</span> Password resets and daily notices can be sent.</p>
+    <p><span class="pill ok">Ready</span> Password resets, the morning list and the account-codes nudge can be sent.</p>
   {% else %}
     <p><span class="pill warn">Not set up</span> Until a mail server is configured, the forgotten-password
-      page tells people to ask an administrator, and no daily notice goes out.</p>
+      page tells people to ask an administrator, and no morning list goes out.</p>
   {% endif %}
-  <p class="small">Use a transactional mail service (Resend, Postmark, Amazon SES) with a sending address on a
-    subdomain you control, rather than a personal mailbox. Anything set on the host wins over what you type here
-    and is shown locked.</p>
+  {% if checks %}
+    <ul class="small" style="margin:8px 0 0;padding-left:18px">
+      {% for level, sentence in checks %}
+        <li{% if level == 'bad' %} class="err"{% endif %}>{{ sentence }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="small">Nothing looks wrong with the settings. Send yourself a test to be sure.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Start from a service</h2>
+  <p class="small">Fills in the server, port and security &mdash; the settings that are the same for
+    everybody on that service, and where a setup usually goes wrong. The API key and the From address
+    are yours to add below. Use a transactional mail service rather than a mailbox: a mailbox will
+    eventually decide this looks like spam.</p>
+  <form method="post" action="/admin/email/preset" class="row">
+    <label>Service
+      <select id="provider" name="provider">
+        {% for key, p in presets.items() %}<option value="{{ key }}">{{ p.label }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn secondary" type="submit">Fill these in</button>
+  </form>
 </div>
 
 <div class="card">
@@ -22,30 +45,28 @@
     <label>To <input id="test_to" type="email" name="to" value="{{ test_to }}" required placeholder="you@example.com"></label>
     <button class="btn" type="submit" {% if not configured %}disabled title="configure a mail server first"{% endif %}>Send test</button>
   </form>
-  <p class="small">If it fails you will see the mail server's own reason, which is usually enough to tell a wrong
-    password from a wrong host.</p>
+  <p class="small">If it fails you get the mail server's own words plus what they usually mean.</p>
 </div>
 
 <div class="card">
   <h2>Mail server</h2>
-  <form method="post" action="/admin/email" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
+  <form method="post" action="/admin/email" class="fields">
     {% for row in rows %}
       <label>{{ row.key }}
         {% if row.locked %}
           <input id="{{ row.key }}" value="{% if row.secret %}(set on the host){% else %}{{ row.value }}{% endif %}" disabled>
-          <span class="small">set on the host</span>
+          <span class="small">set on the host, so it cannot be changed here</span>
         {% elif row.secret %}
           <input id="{{ row.key }}" type="password" name="{{ row.key }}" placeholder="{{ 'leave blank to keep the saved one' if row.is_set else 'not set' }}" autocomplete="new-password">
           {% if row.is_set %}<label class="small"><input type="checkbox" name="clear_password" value="1"> clear it</label>{% endif %}
+          <span class="small">{{ row.help }}</span>
         {% else %}
           <input id="{{ row.key }}" name="{{ row.key }}" value="{{ row.value }}">
-          {% if row.source %}<span class="small">{{ row.source }}</span>{% endif %}
+          <span class="small">{{ row.help }}{% if row.source %} &middot; {{ row.source }}{% endif %}</span>
         {% endif %}
       </label>
     {% endfor %}
     <div class="row" style="grid-column:1/-1"><button class="btn" type="submit">Save</button></div>
   </form>
-  <p class="small">SMTP_SECURITY is <code>starttls</code> for port 587, <code>ssl</code> for port 465.
-    PORTAL_BASE_URL is the public address of this site, used to build reset links.</p>
 </div>
 {% endblock %}

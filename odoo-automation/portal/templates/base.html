@@ -19,6 +19,11 @@ td.when{white-space:nowrap}
 .btn{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:4px;padding:8px 14px;font-weight:600;cursor:pointer;text-decoration:none;font-size:.9rem}
 .btn.secondary{background:var(--paper);color:var(--ink);border:1px solid var(--line)}.btn:disabled{opacity:.5;cursor:default}
 .btn.tight{padding:4px 10px;font-size:.8rem}
+/* A settings form: one field per cell, its help under it rather than beside it. */
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.fields>label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.85rem}
+.fields>label>input{width:100%;font-weight:400}
+.fields>label .small{font-weight:400}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 input,select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink)}
 pre{background:var(--code);padding:12px;border-radius:4px;overflow-x:auto;font-size:.82rem;margin:0}

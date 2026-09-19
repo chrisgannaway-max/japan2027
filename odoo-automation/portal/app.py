@@ -1260,16 +1260,19 @@ def missing_csv(days: int = 14, day: Optional[str] = None, user: User = Depends(
 
 # ------------------------------------------------------------------ e-mail setup
 @app.get("/admin/email", response_class=HTMLResponse)
-def email_page(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = ""):
+def email_page(request: Request, user: User = Depends(require_admin), msg: str = "", err: str = "",
+               note: str = ""):
     rows = []
-    for key in mail.KEYS:
+    for key in mail.FORM_KEYS:
         secret = key in mail.SECRET_KEYS
         rows.append({"key": key, "source": mail.source_of(key), "secret": secret,
+                     "help": mail.HELP.get(key, ""),
                      "value": "" if secret else mail.setting(key),
                      "is_set": bool(mail.setting(key)),
                      "locked": bool(os.environ.get(key))})
     return render(request, "admin_email.html", rows=rows, configured=mail.configured(),
-                  msg=msg, err=err, test_to=user.email or "")
+                  msg=msg, err=err, note=note, checks=mail.checks(),
+                  presets=mail.PRESETS, test_to=user.email or "")
 
 
 @app.post("/admin/odoo-autopost")
@@ -1300,6 +1303,25 @@ async def email_save(request: Request, user: User = Depends(require_admin)):
     return RedirectResponse("/admin/email?msg=Saved", status_code=303)
 
 
+@app.post("/admin/email/preset")
+def email_preset(user: User = Depends(require_admin), provider: str = Form("")):
+    """Fill in the settings that are the same for everybody on a given service.
+
+    Only the ones nobody chooses -- host, port, security, and the fixed login some services
+    use.  The API key and the From address are the person's own and are left alone.
+    """
+    preset = mail.PRESETS.get(provider)
+    if not preset:
+        return RedirectResponse("/admin/email?err=Unknown+service", status_code=303)
+    values = {k: v for k, v in preset.items()
+              if k in mail.FORM_KEYS and v and not os.environ.get(k)}
+    if values:
+        state.db.save_settings(values, user.username)
+        state.reload_config()
+    return RedirectResponse(f"/admin/email?msg={quote_plus(preset['label'] + ' settings filled in')}"
+                            f"&note={quote_plus(preset['note'])}", status_code=303)
+
+
 @app.post("/admin/email/test")
 def email_test(request: Request, to: str = Form(...), user: User = Depends(require_admin)):
     body = ("This is a test from the Night Audit portal.\n\n"
@@ -1307,5 +1329,6 @@ def email_test(request: Request, to: str = Form(...), user: User = Depends(requi
             f"Sent by {user.username}.\n")
     ok, why = mail.send_reporting(to.strip(), "Night Audit portal: test message", body)
     if ok:
-        return RedirectResponse(f"/admin/email?msg=Test+message+sent+to+{to.strip()}", status_code=303)
-    return RedirectResponse(f"/admin/email?err=Could+not+send:+{why}", status_code=303)
+        return RedirectResponse(
+            f"/admin/email?msg={quote_plus('Test message sent to ' + to.strip())}", status_code=303)
+    return RedirectResponse(f"/admin/email?err={quote_plus(why)}", status_code=303)

@@ -143,7 +143,9 @@ PORTAL_SECRET=dev python3 -m portal serve
 ```
 
 Every message the portal sends is printed in the first terminal, password-reset links included.
-That proves the whole forgotten-password flow before anyone pays a mail provider.
+That proves the whole forgotten-password flow before anyone pays a mail provider. (The test
+suite does the same thing in-process, so a real SMTP conversation is covered without a
+provider: see `tests/test_mail_setup.py`.)
 
 ### Odoo
 
@@ -330,8 +332,24 @@ and a wrong edit there stops their ordinary business e-mail.
 
 Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `SMTP_SECURITY`
 (`starttls`, `ssl` or `none`) and `PORTAL_BASE_URL`. The **E-mail setup** page under `/admin`
-holds the same settings for whoever runs this day to day, and has a *Send a test message*
-button.
+holds the same settings for whoever runs this day to day.
+
+Start there rather than with the variables. The page:
+
+* **lists what is missing** before you send anything — no From address, a password with no
+  user, port 465 set to starttls;
+* **fills in a service for you** — pick Resend, Postmark, Brevo, SendGrid, SES or Gmail and it
+  sets the host, port, security and the fixed login that service uses. Those three are where a
+  setup goes wrong, and 465-with-starttls fails in a way that reads exactly like a bad
+  password;
+* **sends a test message**, and when that fails gives you the server's own words *and* what
+  they usually mean. "Authentication failed" is nearly always the API key in the wrong box:
+  for most services `SMTP_PASSWORD` is an API key and `SMTP_USER` is a fixed word — `resend`,
+  `apikey`, or the token again — not an e-mail address.
+
+The order that works: pick the service, verify a sending domain with them, paste the API key,
+put the verified address in `SMTP_FROM`, set `PORTAL_BASE_URL` to the public address of this
+site, put the office address in `REPORT_TO`, then send yourself a test.
 
 Anything set as an environment variable on the host is shown locked on that page and cannot be
 changed from the browser, so a pinned credential stays pinned. The password is never rendered

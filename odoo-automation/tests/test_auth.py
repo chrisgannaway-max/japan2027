@@ -1,5 +1,6 @@
 """Logins, throttling, password reset and two-step sign-in."""
 import importlib
+from urllib.parse import unquote_plus
 import re
 
 import pyotp
@@ -206,9 +207,11 @@ def test_email_settings_page_and_test_button(tmp_path, monkeypatch):
     c.post("/admin/email", data={"SMTP_HOST": "smtp2.example.com", "SMTP_FROM": "portal@example.com",
                                  "SMTP_PASSWORD": "", "clear_password": "1"})
     assert mail.setting("SMTP_PASSWORD") == ""
-    # the test button reports the mail server's own reason when it fails
+    # the test button reports the mail server's own reason when it fails, and says which
+    # server would not answer -- a typo in the host is the commonest way this goes wrong
     r = c.post("/admin/email/test", data={"to": "someone@example.com"})
-    assert r.status_code == 303 and "Could+not+send" in r.headers["location"]
+    assert r.status_code == 303 and "err=" in r.headers["location"]
+    assert "smtp2.example.com" in unquote_plus(r.headers["location"])
     sent = {}
     monkeypatch.setattr(mail, "send_reporting", lambda to, s_, b: sent.update(to=to) or (True, ""))
     r = c.post("/admin/email/test", data={"to": "someone@example.com"})
