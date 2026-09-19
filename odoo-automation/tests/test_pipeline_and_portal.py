@@ -124,6 +124,21 @@ def test_manager_upload_admin_review_and_export(client):
     assert client.post(f"/runs/{run_id}/post", data={"post_now": "no"}).status_code == 400
 
 
+def test_the_upload_list_shows_the_time_in_oklahoma(client):
+    """The host clock is UTC; a pack filed at 7pm in Oklahoma must not read as tomorrow."""
+    import re
+    from portal import clock
+
+    login(client, "okcon", "okcon")
+    with open(FIXTURES / "pep_final_audit.txt", "rb") as fh:
+        client.post("/upload", data={"property_code": "OKCON"},
+                    files=[("files", ("OKCON_final_audit.txt", fh, "text/plain"))])
+    body = client.get("/upload").text
+    assert clock.show_short(clock.stamp()) in body
+    assert re.search(r"\d\d/\d\d \d?\d:\d\d [ap]m C[DS]T", body), body[body.find("<tbody>"):][:400]
+    assert "T" + clock.stamp()[11:13] not in body        # not the raw UTC ISO string
+
+
 def test_synxis_pair_upload_merges(client):
     login(client, "lq89051", "lq89051")
     files = [("files", (name, (FIXTURES / "synxis" / name).read_bytes(), "text/plain"))

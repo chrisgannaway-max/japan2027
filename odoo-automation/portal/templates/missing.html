@@ -36,7 +36,7 @@
         <td><b>{{ row.code }}</b><br><span class="small">{{ row.name }}</span></td>
         <td class="small">{{ row.pms }}</td>
         {% for cell in row.cells %}
-          <td class="cell {{ cell.state }}" title="{{ cell.date }}{% if cell.run %} - {{ cell.run.status }}, uploaded {{ cell.run.created_at }} by {{ cell.run.uploaded_by }}{% endif %}">
+          <td class="cell {{ cell.state }}" title="{{ cell.date }}{% if cell.run %} - {{ cell.run.status }}, uploaded {{ cell.run.created_at | when }} by {{ cell.run.uploaded_by }}{% endif %}">
             {% if cell.run %}<a href="/runs/{{ cell.run.id }}">{{ '✓' if cell.state == 'ok' else '!' }}</a>
             {% elif cell.state == 'missing' %}&times;{% endif %}
           </td>

@@ -24,10 +24,9 @@ elif len(sys.argv) >= 2 and sys.argv[1] == "post":
         sys.exit("set DELIVERY_MODE=odoo with ODOO_URL and ODOO_API_KEY to send entries")
     print(poster.post_due(state.db, autopost=state.autopost))
 elif len(sys.argv) >= 2 and sys.argv[1] == "report":
-    from . import daily, scheduler
+    from . import clock, daily, scheduler
     from .app import state
-    from datetime import datetime
-    day = scheduler.business_date_for(datetime.now())
+    day = scheduler.business_date_for(clock.now())
     if "--send" in sys.argv:
         sent, why = scheduler.send_report(state, force=True)
         print("sent" if sent else f"not sent: {why}")

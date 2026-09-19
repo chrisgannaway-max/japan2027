@@ -10,7 +10,7 @@
     <span><b>PMS</b> {{ res.pms or '—' }}</span>
     <span><b>Business date</b> {{ res.business_date or '—' }}</span>
     <span><b>File</b> {{ run.file_name }}{% for c in res.companions %} + {{ c.split('/')[-1] }}{% endfor %}</span>
-    <span><b>Uploaded</b> {{ run.created_at }} by {{ run.uploaded_by }}</span>
+    <span><b>Uploaded</b> {{ run.created_at | when }} by {{ run.uploaded_by }}</span>
   </div>
   <p class="msg {% if run.status != 'ok' %}err{% endif %}">{{ res.message }}</p>
   {% for w in res.warnings %}<p class="msg">⚠ {{ w }}</p>{% endfor %}

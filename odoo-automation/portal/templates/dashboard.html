@@ -18,7 +18,7 @@
         <td>{{ row.pms }}</td>
         <td>{% if row.run %}{{ pill(row.run.status) }}{% if row.run.posted_at %} <span class="pill ok">posted</span>{% elif row.run.approved_at %} <span class="pill ok">approved</span>{% elif row.run.exported_at %} <span class="pill muted">exported</span>{% endif %}{% else %}<span class="pill bad">Not uploaded</span>{% endif %}</td>
         <td class="n">{% if row.result and row.result.entry %}{{ '{:,.2f}'.format(row.result.entry.total_debit) }}{% endif %}</td>
-        <td class="small">{% if row.run %}{{ row.run.created_at }}<br>{{ row.run.uploaded_by }}{% endif %}</td>
+        <td class="small">{% if row.run %}{{ row.run.created_at | when_short }}<br>{{ row.run.uploaded_by }}{% endif %}</td>
         <td class="small">{% if row.result %}{{ row.result.message[:160] }}{% for w in row.result.warnings %}<br>⚠ {{ w }}{% endfor %}{% endif %}</td>
         <td>{% if row.run %}<a href="/runs/{{ row.run.id }}">review</a>{% if row.run.status == 'unmapped' %}<br><a href="/admin/mapping/{{ row.run.id }}">map lines</a>{% endif %}{% endif %}</td>
       </tr>

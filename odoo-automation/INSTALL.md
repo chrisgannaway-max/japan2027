@@ -428,10 +428,30 @@ checking out the previous commit and restarting; the database stays readable by 
 
 ---
 
-## 15. Every setting
+## 15. Time
+
+The portal keeps two clocks apart on purpose.
+
+* **What it shows and what it decides** runs on the hotels' clock — `TIMEZONE`, which defaults
+  to `America/Chicago` for Oklahoma. "Due by 06:00" is six in the morning there, a night-audit
+  pack filed at 7pm belongs to that day's business date, and the *When* column reads
+  `09/18/2026 5:38 pm CDT`. Daylight saving is handled by the zone, so nothing needs changing
+  in March or November.
+* **What it stores** is UTC, to the second. Timestamps are compared as plain text in a dozen
+  places — which of two uploads supersedes the other, whether a password-reset link has
+  expired — and local time cannot do that job: on the first Sunday in November it runs the
+  same hour twice.
+
+A host in a different timezone therefore changes nothing. Render runs in UTC and the site reads
+in Central. To move it, set `TIMEZONE` to any name from the IANA database and restart; the
+startup line says which zone it took and what time it is there. An unknown name falls back to
+UTC with a warning rather than refusing to start.
+
+## 16. Every setting
 
 | Variable | Default | What it does |
 |---|---|---|
+| `TIMEZONE` | `America/Chicago` | the hotels' timezone: cut-offs, business dates and every time on screen |
 | `PORTAL_SECRET` | random per start | signs session cookies — **set it** |
 | `PORTAL_BASE_URL` | — | public address, used to build links in e-mail |
 | `PORTAL_DATA` | `./data` | database and uploads when nothing else is configured |
@@ -597,6 +617,8 @@ restart cannot send it twice.
 
 The cut-off is 06:00, overridden per property with `due_by: "05:30"` in its configuration. A
 property with nothing yet reads as *not due* before its cut-off and *nothing has arrived* after.
+
+06:00 means six in the morning **where the hotels are**, not on the host. See *Time* below.
 
 If you would rather use the host's own scheduler than the built-in loop, leave `SCHEDULER` off
 and run `python3 -m portal post` and `python3 -m portal report --send` from cron.

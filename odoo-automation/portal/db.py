@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from . import clock
 from .sql import Pool, database_url
 
 SCHEMA = """
@@ -136,7 +137,7 @@ class Database:
                      ("sha256", "message_id", "sender", "recipient", "subject", "received_at",
                       "file_name", "stored_path", "run_id", "created_at"),
                      (sha256, message_id, sender, recipient, subject, received_at, file_name,
-                      stored_path, run_id, datetime.now().isoformat(timespec="seconds")),
+                      stored_path, run_id, clock.stamp()),
                      conflict="sha256")
 
     def intake_for_run(self, run_id: int) -> Optional[dict]:
@@ -152,7 +153,7 @@ class Database:
             return c.insert(
                 "INSERT INTO runs(created_at, uploaded_by, property_code, business_date, pms, ref, status, message, "
                 "file_name, stored_path, result_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                (datetime.now().isoformat(timespec="seconds"), uploaded_by, property_code, business_date, pms, ref,
+                (clock.stamp(), uploaded_by, property_code, business_date, pms, ref,
                  status, message, file_name, stored_path, result_json))
 
     def runs_not_yet_notified(self, statuses: tuple = ("unmapped",)) -> list[dict]:
@@ -165,7 +166,7 @@ class Database:
     def mark_notified(self, run_ids: list[int]) -> None:
         if not run_ids:
             return
-        now = datetime.now().isoformat(timespec="seconds")
+        now = clock.stamp()
         with self._conn() as c:
             for rid in run_ids:
                 c.execute("UPDATE runs SET notified_at=? WHERE id=?", (now, rid))
@@ -257,7 +258,7 @@ class Database:
     def add_invoice(self, *, uploaded_by: str, file_name: str, stored_path: str, reader: str, confidence: str,
                     **fields) -> int:
         cols = ["created_at", "uploaded_by", "file_name", "stored_path", "reader", "confidence"] + list(fields)
-        vals = [datetime.now().isoformat(timespec="seconds"), uploaded_by, file_name, stored_path, reader, confidence] + list(fields.values())
+        vals = [clock.stamp(), uploaded_by, file_name, stored_path, reader, confidence] + list(fields.values())
         with self._conn() as c:
             return c.insert(f"INSERT INTO invoices({', '.join(cols)}) VALUES({', '.join('?' * len(cols))})", vals)
 
@@ -310,12 +311,12 @@ class Database:
         with self._conn() as c:
             c.execute("INSERT INTO vendor_accounts(vendor_key, vendor_name, account_code, updated_at) VALUES(?,?,?,?) "
                       "ON CONFLICT(vendor_key) DO UPDATE SET account_code=excluded.account_code, vendor_name=excluded.vendor_name, "
-                      "updated_at=excluded.updated_at", (key, vendor_name, account_code, datetime.now().isoformat(timespec="seconds")))
+                      "updated_at=excluded.updated_at", (key, vendor_name, account_code, clock.stamp()))
 
     # ---------------------------------------------------------------- chart of accounts
     def replace_accounts(self, rows: list[dict], source: str) -> int:
         """Replace the stored chart of accounts. rows: {code, name, account_type}."""
-        now = datetime.now().isoformat(timespec="seconds")
+        now = clock.stamp()
         clean = [(str(r["code"]).strip(), (r.get("name") or "").strip(),
                   (r.get("account_type") or "").strip(), source, now)
                  for r in rows if str(r.get("code") or "").strip()]
@@ -347,28 +348,30 @@ class Database:
     def create_reset(self, username: str, token: str, minutes: int = 60) -> None:
         """Only the hash is stored, so the database never holds a usable link."""
         from datetime import timedelta as _td
-        now = datetime.now()
+        # Both ends in UTC, because the expiry is checked by comparing the two strings -- and
+        # an hour that local time runs twice would hand out a two-hour link.
+        now = clock.utc_now()
         with self._conn() as c:
             c.execute("DELETE FROM password_resets WHERE username=? AND used_at IS NULL", (username,))
             c.execute("INSERT INTO password_resets(token_hash, username, created_at, expires_at) VALUES(?,?,?,?)",
-                      (self._token_hash(token), username, now.isoformat(timespec="seconds"),
-                       (now + _td(minutes=minutes)).isoformat(timespec="seconds")))
+                      (self._token_hash(token), username, now.strftime("%Y-%m-%dT%H:%M:%S"),
+                       (now + _td(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S")))
 
     def use_reset(self, token: str) -> Optional[str]:
         """The username if the token is valid and unused, else None.  Single use."""
         with self._conn() as c:
             row = c.execute("SELECT * FROM password_resets WHERE token_hash=?", (self._token_hash(token),)).fetchone()
-            if row is None or row["used_at"] or row["expires_at"] < datetime.now().isoformat(timespec="seconds"):
+            if row is None or row["used_at"] or row["expires_at"] < clock.stamp():
                 return None
             c.execute("UPDATE password_resets SET used_at=? WHERE token_hash=?",
-                      (datetime.now().isoformat(timespec="seconds"), row["token_hash"]))
+                      (clock.stamp(), row["token_hash"]))
             return row["username"]
 
     def peek_reset(self, token: str) -> Optional[str]:
         """Like use_reset but without spending it, so the form can be shown first."""
         with self._conn() as c:
             row = c.execute("SELECT * FROM password_resets WHERE token_hash=?", (self._token_hash(token),)).fetchone()
-        if row is None or row["used_at"] or row["expires_at"] < datetime.now().isoformat(timespec="seconds"):
+        if row is None or row["used_at"] or row["expires_at"] < clock.stamp():
             return None
         return row["username"]
 
@@ -380,7 +383,7 @@ class Database:
     def save_settings(self, values: dict[str, str], username: str = "") -> None:
         """Blank values are removed rather than stored, so falling back to the environment
         is always possible."""
-        now = datetime.now().isoformat(timespec="seconds")
+        now = clock.stamp()
         with self._conn() as c:
             for k, v in values.items():
                 if v is None or v == "":

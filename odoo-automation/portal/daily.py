@@ -24,6 +24,8 @@ from typing import Optional
 
 from pms_to_odoo.pipeline import STATUS_LABELS, RunResult
 
+from . import clock
+
 #: when a property is considered late if nothing has arrived (overridden per property by
 #: `due_by: "05:30"` in its configuration).
 DEFAULT_DUE_BY = time(6, 0)
@@ -89,7 +91,7 @@ def due_by(prop: dict) -> time:
 def build(db, props: dict, day: date, now: Optional[datetime] = None,
           max_attempts: int = 5) -> Report:
     """One row per property for `day`, the business date of the night in question."""
-    now = now or datetime.now()
+    now = now or clock.now()
     runs = {r["property_code"]: r for r in db.runs_for_date(day.isoformat())}
     report = Report(day=day)
 

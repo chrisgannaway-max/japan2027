@@ -34,6 +34,8 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Iterator, Optional
 
+from . import clock
+
 #: what we will read out of a message.  Anything else is ignored rather than refused: a signature
 #: image or a logo is not an error, it is just not a night-audit pack.
 REPORT_SUFFIXES = (".pdf", ".txt", ".csv", ".xlsx", ".xlsm")
@@ -189,7 +191,9 @@ def ingest(msg: Message, *, db, storage, props, property_code: str = "",
                                                         # without the parser stack (webhook tests)
     res = IntakeResult(message=msg)
     received = msg.received_at.isoformat(timespec="seconds") if msg.received_at else None
-    stamp = (msg.received_at or datetime.now(timezone.utc)).strftime("%Y%m%d-%H%M%S")
+    # The folder is a name somebody reads in a file listing, so it carries the time the
+    # mail arrived as it reads in Oklahoma, whatever offset the sending server stamped it with.
+    stamp = (clock.to_local(msg.received_at) or clock.now()).strftime("%Y%m%d-%H%M%S")
 
     reports = msg.reports
     res.ignored = [a.name for a in msg.attachments if a not in reports]

@@ -4,7 +4,7 @@
 {% if msg %}<p class="pill ok">{{ msg }}</p>{% endif %}{% if err %}<p class="err">{{ err }}</p>{% endif %}
 <div class="card">
   {% if info.count %}
-    <p>{{ info.count }} accounts loaded &middot; <span class="small">{{ info.source }}, {{ info.updated_at }}</span></p>
+    <p>{{ info.count }} accounts loaded &middot; <span class="small">{{ info.source }}, {{ info.updated_at | when }}</span></p>
   {% else %}
     <p class="small">No accounts loaded yet. Until they are, the mapping screen asks you to type account codes by hand.</p>
   {% endif %}

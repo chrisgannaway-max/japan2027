@@ -2,6 +2,10 @@
 import importlib
 from datetime import date, timedelta
 
+# The grid's "today" is the hotels' today, which is not the container's when the
+# container runs in UTC and it is already tomorrow there.
+from portal.clock import today as today_
+
 import pytest
 
 from conftest import FIXTURES
@@ -44,8 +48,8 @@ def test_report_is_admin_only(client):
 
 def test_grid_flags_who_missed_last_night(client):
     c, app_module = client
-    last_night = (date.today() - timedelta(days=1)).isoformat()
-    two_nights = (date.today() - timedelta(days=2)).isoformat()
+    last_night = (today_() - timedelta(days=1)).isoformat()
+    two_nights = (today_() - timedelta(days=2)).isoformat()
     seed(app_module, "OKCON", last_night)                        # fine
     seed(app_module, "TXI47", last_night, status="unmapped")     # uploaded but stuck
     seed(app_module, "OKCMD", two_nights)                        # reported before, silent last night
@@ -65,7 +69,7 @@ def test_grid_flags_who_missed_last_night(client):
 
 def test_a_property_is_not_missing_before_its_first_upload(client):
     c, app_module = client
-    today = date.today()
+    today = today_()
     seed(app_module, "OKCON", (today - timedelta(days=2)).isoformat())
     seed(app_module, "OKCON", (today - timedelta(days=1)).isoformat())
     grid = app_module._coverage_grid(5)
@@ -75,7 +79,7 @@ def test_a_property_is_not_missing_before_its_first_upload(client):
 
 def test_everyone_reported_message(client):
     c, app_module = client
-    last_night = (date.today() - timedelta(days=1)).isoformat()
+    last_night = (today_() - timedelta(days=1)).isoformat()
     for code in app_module.state.props:
         seed(app_module, code, last_night)
     c.post("/login", data={"username": "admin", "password": "admin"})
@@ -85,7 +89,7 @@ def test_everyone_reported_message(client):
 
 def test_csv_lists_every_property_and_night(client):
     c, app_module = client
-    last_night = (date.today() - timedelta(days=1)).isoformat()
+    last_night = (today_() - timedelta(days=1)).isoformat()
     seed(app_module, "OKCON", last_night)
     c.post("/login", data={"username": "admin", "password": "admin"})
     r = c.get("/missing.csv?days=2")

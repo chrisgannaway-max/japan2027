@@ -23,6 +23,8 @@ from pms_to_odoo.journal import post_entry
 from pms_to_odoo.odoo_client import OdooClient, OdooError, OdooSettings
 from pms_to_odoo.pipeline import RunResult
 
+from . import clock
+
 MAX_ATTEMPTS = 5
 
 
@@ -74,7 +76,7 @@ def post_due(db, *, autopost: bool = False, limit: int = 50, max_attempts: int =
             db.record_post_failure(r["id"], str(e))
             summary.failed.append((r["id"], str(e)))
             continue
-        db.mark(r["id"], posted_at=datetime.now().isoformat(timespec="seconds"),
+        db.mark(r["id"], posted_at=clock.stamp(),
                 odoo_move_id=out.move_id, post_error=None)
         (summary.existing if out.status == "exists" else summary.posted).append((r["id"], out.ref))
     return summary

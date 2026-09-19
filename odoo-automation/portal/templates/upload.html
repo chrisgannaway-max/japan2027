@@ -38,7 +38,7 @@
     <thead><tr><th>When</th><th>Property</th><th>Business date</th><th>File</th><th>Status</th><th>By</th></tr></thead>
     <tbody>
     {% for r in runs %}
-      <tr{% if r.superseded %} class="superseded"{% endif %}><td>{{ r.created_at }}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
+      <tr{% if r.superseded %} class="superseded"{% endif %}><td>{{ r.created_at | when_short }}</td><td>{{ r.property_code or '—' }}</td><td>{{ r.business_date or '—' }}</td>
           <td><a href="/runs/{{ r.id }}">{{ r.file_name }}</a></td><td>{{ pill(r.status) }}{% if r.superseded %} <span class="pill muted">replaced by a later upload</span>{% elif r.posted_at %} <span class="pill ok">posted</span>{% elif r.approved_at %} <span class="pill ok">approved</span>{% endif %}</td><td>{{ r.uploaded_by }}</td></tr>
     {% else %}<tr><td colspan="6" class="small">Nothing uploaded yet.</td></tr>{% endfor %}
     </tbody></table></div>

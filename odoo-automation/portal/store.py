@@ -21,6 +21,7 @@ import yaml
 from pms_to_odoo.mapping import GLMapping, MappingError
 from pms_to_odoo.pipeline import load_properties as load_properties_yaml, resolve
 
+from . import clock
 from .sql import Pool, database_url
 
 from .auth import hash_password
@@ -93,7 +94,7 @@ class ConfigStore:
         vals["code"] = code
         vals["pms"] = str(vals["pms"]).upper()
         vals["enabled"] = 1 if str(fields.get("enabled", "1")) in ("1", "on", "true", "True") else 0
-        vals["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        vals["updated_at"] = clock.stamp()
         cols = ", ".join(vals)
         with self._conn() as c:
             c.execute(f"INSERT INTO properties({cols}) VALUES({', '.join('?' * len(vals))}) ON CONFLICT(code) DO UPDATE SET "
@@ -159,17 +160,17 @@ class ConfigStore:
                       "properties=excluded.properties, enabled=excluded.enabled, updated_at=excluded.updated_at, "
                       "email=excluded.email",
                       (username, ph, role, ",".join(p.strip() for p in properties if p.strip()), 1 if enabled else 0,
-                       datetime.now().isoformat(timespec="seconds"), mail.strip()))
+                       clock.stamp(), mail.strip()))
 
     def set_password(self, username: str, password: str) -> None:
         with self._conn() as c:
             c.execute("UPDATE users SET password_hash=?, updated_at=? WHERE username=?",
-                      (hash_password(password), datetime.now().isoformat(timespec="seconds"), username))
+                      (hash_password(password), clock.stamp(), username))
 
     def set_mfa(self, username: str, secret: str, enabled: bool) -> None:
         with self._conn() as c:
             c.execute("UPDATE users SET totp_secret=?, mfa_enabled=?, updated_at=? WHERE username=?",
-                      (secret, 1 if enabled else 0, datetime.now().isoformat(timespec="seconds"), username))
+                      (secret, 1 if enabled else 0, clock.stamp(), username))
 
     def delete_user(self, username: str) -> None:
         with self._conn() as c:

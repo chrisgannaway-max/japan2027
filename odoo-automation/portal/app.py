@@ -38,7 +38,7 @@ from pms_to_odoo.pipeline import STATUS_LABELS, RunResult, load_properties, proc
 from . import mail
 from .auth import (LoginThrottle, SessionSigner, User, UserStore, hash_password,
                     new_totp_secret, totp_qr_svg, totp_uri, verify_totp)
-from . import daily, intake, poster, scheduler, storage
+from . import clock, daily, intake, poster, scheduler, storage
 from .db import Database
 from .store import ConfigStore, PROPERTY_COLUMNS, read_mapping_text, store_mode, write_mapping_text
 
@@ -56,6 +56,11 @@ VENDOR_ACCOUNTS = ROOT / "config" / "vendor_accounts.yaml"
 app = FastAPI(title="Night Audit to Odoo", docs_url=None, redoc_url=None)
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
+# Stamps are stored in UTC and read by people in Oklahoma; the templates print them with
+# `| when` (or `| when_short`) so no page has to remember that.
+templates.env.filters["when"] = clock.show
+templates.env.filters["when_short"] = clock.show_short
+templates.env.globals["TZ_NAME"] = str(clock.TZ)
 
 
 AUTOPOST_KEY = "ODOO_AUTOPOST"
@@ -124,6 +129,8 @@ class State:
             print("[portal] entries will be POSTED in Odoo on arrival, not left as drafts")
         print(f"[portal] config from {self.mode}; database: {self.db.describe()}; "
               f"files: {self.storage.describe()}")
+        print(f"[portal] cut-offs and times on screen are {clock.TZ}; it is "
+              f"{clock.now():%H:%M} there now")
 
     @property
     def autopost_locked(self) -> bool:
@@ -391,7 +398,7 @@ async def upload(request: Request, background: BackgroundTasks, user: User = Dep
     if property_code and property_code not in props:
         raise HTTPException(403, "Property not allowed")
     results: list[tuple[int, RunResult]] = []
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = clock.now().strftime("%Y%m%d-%H%M%S")
     prefix = f"uploads/{property_code or 'unsorted'}/{stamp}"
     saved: list[tuple[Path, str]] = []
     for f in files:
@@ -432,7 +439,7 @@ def dashboard(request: Request, day: Optional[str] = None, user: User = Depends(
                 "This site is for the accounting office. Night-audit packs are sent by e-mail, "
                 "not uploaded here.", status_code=200)
         return RedirectResponse("/upload", status_code=303)
-    d = date.fromisoformat(day) if day else date.today() - timedelta(days=1)
+    d = date.fromisoformat(day) if day else clock.today() - timedelta(days=1)
     runs = state.db.runs_for_date(d.isoformat())
     latest: dict[str, object] = {}
     for r in runs:
@@ -467,7 +474,7 @@ def approve(run_id: int, user: User = Depends(require_admin)):
     r = state.db.get_run(run_id)
     if not r or r["status"] != "ok":
         raise HTTPException(400, "Only balanced runs can be approved")
-    state.db.mark(run_id, approved_at=datetime.now().isoformat(timespec="seconds"), approved_by=user.username)
+    state.db.mark(run_id, approved_at=clock.stamp(), approved_by=user.username)
     return RedirectResponse(f"/runs/{run_id}", status_code=303)
 
 
@@ -484,7 +491,7 @@ def post_to_odoo(run_id: int, user: User = Depends(require_admin), post_now: str
         result = post_entry(res.entry, client, post=(post_now == "yes") or state.autopost)
     except OdooError as e:
         raise HTTPException(502, f"Odoo error: {e}") from e
-    state.db.mark(run_id, posted_at=datetime.now().isoformat(timespec="seconds"), odoo_move_id=result.move_id)
+    state.db.mark(run_id, posted_at=clock.stamp(), odoo_move_id=result.move_id)
     return RedirectResponse(f"/runs/{run_id}", status_code=303)
 
 
@@ -526,7 +533,7 @@ def export_day(day: str, fmt: str = "odoo", approved: str = "all", again: str = 
     entries = [e for _, e in pairs]
     body = entries_to_odoo_csv(entries) if fmt == "odoo" else entries_to_flat_csv(entries)
     for run_id, _ in pairs:
-        state.db.mark(run_id, exported_at=datetime.now().isoformat(timespec="seconds"))
+        state.db.mark(run_id, exported_at=clock.stamp())
     return Response(body, media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="night-audit-{day}-{fmt}.csv"'})
 
@@ -541,7 +548,7 @@ def export_run(run_id: int, fmt: str = "odoo", user: User = Depends(require_admi
         raise HTTPException(404)
     res = RunResult.from_json(r["result_json"])
     body = entries_to_odoo_csv([res.entry]) if fmt == "odoo" else entries_to_flat_csv([res.entry])
-    state.db.mark(run_id, exported_at=datetime.now().isoformat(timespec="seconds"))
+    state.db.mark(run_id, exported_at=clock.stamp())
     return Response(body, media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{res.ref}-{fmt}.csv"'})
 
@@ -590,7 +597,7 @@ async def intake_mail(request: Request, background: BackgroundTasks):
 def daily_report(day: Optional[str] = None, user: User = Depends(require_admin)):
     """The morning list, exactly as the e-mail sends it.  Plain text on purpose: it is the same
     thing read two ways, so there is no second version to drift."""
-    d = date.fromisoformat(day) if day else scheduler.business_date_for(datetime.now())
+    d = date.fromisoformat(day) if day else scheduler.business_date_for(clock.now())
     return daily.as_text(daily.build(state.db, state.props, d), mail.base_url())
 
 
@@ -694,8 +701,8 @@ async def invoice_upload(request: Request, user: User = Depends(require_user),
     if Path(name).suffix.lower() not in INVOICE_SUFFIXES:
         return render(request, "invoices.html", **_invoice_form_ctx(request, user, draft=None, inv_id=None,
                       error="Only PDF, PNG, JPG or TXT invoices"))
-    key = (f"invoices/{property_code or 'unsorted'}/{datetime.now().strftime('%Y%m')}"
-           f"/{datetime.now().strftime('%Y%m%d-%H%M%S')}-{name}")
+    when = clock.now()
+    key = (f"invoices/{property_code or 'unsorted'}/{when:%Y%m}/{when:%Y%m%d-%H%M%S}-{name}")
     try:
         locator = state.storage.save(key, await file.read())
         target = state.storage.local_path(locator)
@@ -769,13 +776,13 @@ def invoices_export(status: str = "ready", user: User = Depends(require_admin)):
     else:
         rows = state.db.list_invoices(status, None, 1000)
     body = bills_to_odoo_csv([dict(r) for r in rows])
-    now = datetime.now().isoformat(timespec="seconds")
+    now = clock.stamp()
     for r in rows:
         if r["status"] == "ready":
             state.db.update_invoice(r["id"], exported_at=now, status="exported")
             state.db.remember_account(r["vendor_name"], r["account_code"])
     return Response(body, media_type="text/csv",
-                    headers={"Content-Disposition": f'attachment; filename="vendor-bills-{datetime.now():%Y%m%d-%H%M}.csv"'})
+                    headers={"Content-Disposition": f'attachment; filename="vendor-bills-{clock.now():%Y%m%d-%H%M}.csv"'})
 
 
 @app.post("/invoices/{inv_id}/post")
@@ -801,7 +808,7 @@ def invoice_post(inv_id: int, user: User = Depends(require_admin)):
     except OdooError as e:
         raise HTTPException(502, f"Odoo error: {e}") from e
     if res.move_id:
-        state.db.update_invoice(inv_id, status="posted", posted_at=datetime.now().isoformat(timespec="seconds"),
+        state.db.update_invoice(inv_id, status="posted", posted_at=clock.stamp(),
                                 odoo_move_id=res.move_id)
         state.db.remember_account(inv["vendor_name"], inv["account_code"])
     return RedirectResponse(f"/invoices/{inv_id}", status_code=303)
@@ -821,7 +828,7 @@ def post_day(day: str, post_now: str = Form("no"), user: User = Depends(require_
             result = post_entry(res.entry, client, post=(post_now == "yes") or state.autopost)
         except OdooError as e:
             raise HTTPException(502, f"Odoo error on {res.ref}: {e}") from e
-        state.db.mark(r["id"], posted_at=datetime.now().isoformat(timespec="seconds"), odoo_move_id=result.move_id)
+        state.db.mark(r["id"], posted_at=clock.stamp(), odoo_move_id=result.move_id)
     return RedirectResponse(f"/?day={day}", status_code=303)
 
 
@@ -1009,7 +1016,7 @@ async def mapping_save(request: Request, run_id: int, user: User = Depends(requi
             text = re.sub(r"^ignore:.*$", "ignore:\n" + "\n".join(pats), text, count=1, flags=re.M)
         else:
             text = text.rstrip("\n") + "\nignore:\n" + "\n".join(pats) + "\n"
-    text = insert_rules(text, new_rules, f"# added from the portal {date.today().isoformat()} by {user.username}")
+    text = insert_rules(text, new_rules, f"# added from the portal {clock.today().isoformat()} by {user.username}")
     try:
         where = write_mapping_text(prop, state.store, text)
     except ValueError as e:
@@ -1072,7 +1079,7 @@ async def import_worksheet(request: Request, user: User = Depends(require_admin)
         for code in targets:
             prop = state.props[code]
             text = insert_rules(read_mapping_text(prop, state.store), rules,
-                                f"# imported from the mapping worksheet {date.today().isoformat()} by {user.username}")
+                                f"# imported from the mapping worksheet {clock.today().isoformat()} by {user.username}")
             try:
                 write_mapping_text(prop, state.store, text)
                 applied.append(f"{code}: {len(rules)} rules")
@@ -1113,7 +1120,7 @@ def _coverage_grid(days: int, end: Optional[date] = None) -> dict:
     with a problem, or nothing at all.  Dates before a property's first-ever upload are
     left blank rather than flagged, so onboarding a hotel does not paint the page red.
     """
-    end = end or date.today() - timedelta(days=1)
+    end = end or clock.today() - timedelta(days=1)
     dates = [(end - timedelta(days=n)).isoformat() for n in range(days - 1, -1, -1)]
     runs = state.db.runs_between(dates[0], dates[-1])
     by_prop: dict[str, dict[str, dict]] = {}
@@ -1159,7 +1166,8 @@ def missing_csv(days: int = 14, day: Optional[str] = None, user: User = Depends(
         for cell in row["cells"]:
             r = cell["run"]
             w.writerow([row["code"], row["name"], row["pms"], cell["date"], cell["state"],
-                        r["status"] if r else "", r["created_at"] if r else "", r["uploaded_by"] if r else ""])
+                        r["status"] if r else "", clock.show(r["created_at"]) if r else "",
+                        r["uploaded_by"] if r else ""])
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="missing-uploads-{grid["end"]}.csv"'})
 

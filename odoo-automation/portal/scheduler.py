@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Optional
 
-from . import daily, mail, poster
+from . import clock, daily, mail, poster
 
 #: how often the loop wakes.  Small enough that a failed night retries within the hour, large
 #: enough that an idle night is nearly free.
@@ -68,7 +68,7 @@ def report_is_due(state, now: datetime) -> tuple[bool, str]:
 
 
 def send_report(state, now: Optional[datetime] = None, force: bool = False) -> tuple[bool, str]:
-    now = now or datetime.now()
+    now = now or clock.now()
     day = business_date_for(now)
     to = mail.setting("REPORT_TO")
     if not to:
@@ -84,7 +84,7 @@ def send_report(state, now: Optional[datetime] = None, force: bool = False) -> t
 
 def tick(state, now: Optional[datetime] = None) -> TickResult:
     """One pass.  Never raises: a background loop that dies takes the whole thing with it."""
-    now = now or datetime.now()
+    now = now or clock.now()
     out = TickResult()
     try:
         if state.delivery == "odoo" and state.odoo_enabled:
