@@ -199,3 +199,28 @@ def test_a_manager_cannot_import_hotels(tmp_path, monkeypatch):
     c.post("/login", data={"username": "okcon", "password": "okcon"})
     assert upload(c, head(row())).status_code in (303, 403)
     assert c.get("/admin/import/hotels.csv").status_code in (303, 403)
+
+
+# The estate file read off Champion's portfolio page.  It is checked in as a scoping document
+# (see PORTFOLIO.md), and a scoping document that would not actually import is worth nothing --
+# their own page ships two hotels on one code, which is exactly the mistake this refuses.
+ESTATE = CONFIG_DIR / "champion_hotels.import.csv"
+
+
+def test_the_champion_estate_file_imports_cleanly():
+    parsed = properties_import.parse(ESTATE.read_text(), existing_codes=[])
+    assert not parsed.errors, parsed.errors[:3]
+    assert len(parsed.rows) == 100
+
+
+def test_no_hotel_in_the_estate_file_claims_a_report_id_nobody_has_seen():
+    """A wrong id lands a pack on the wrong hotel in silence; a blank one only asks a human."""
+    parsed = properties_import.parse(ESTATE.read_text(), existing_codes=[])
+    assert all(not r.get("pms_property_id") for r in parsed.rows)
+    assert len(parsed.warnings) == len(parsed.rows)
+
+
+def test_the_estate_file_leaves_every_new_hotel_switched_off():
+    parsed = properties_import.parse(ESTATE.read_text(), existing_codes=[])
+    live = {"OKCON", "TXI47", "OKCMD", "CANDLEWOOD-MOORE", "OKCAW", "OKCAH"}
+    assert {r.code for r in parsed.rows if r.enabled} == live
