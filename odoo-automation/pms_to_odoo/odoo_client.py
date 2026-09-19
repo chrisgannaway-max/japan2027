@@ -81,6 +81,17 @@ class Json2Transport:
 
 
 class XmlRpcTransport:
+    #: Parameters XML-RPC insists on receiving positionally, in this order.
+    #:
+    #: `execute_kw(db, uid, key, model, method, args, kwargs)` looks like it takes anything by
+    #: name, and for most methods it does -- search_read is happy with domain and fields in the
+    #: keyword dictionary.  `create` is not: Odoo's dispatcher reads the values out of `args[0]`
+    #: before the method is ever called, so sending them by name leaves `args` empty and Odoo
+    #: fails with "IndexError: tuple index out of range", which says nothing about what is
+    #: wrong.  JSON-2 has no such rule -- everything is named in the body -- so this belongs
+    #: here rather than in the client above.
+    POSITIONAL = {"create": ("vals_list",)}
+
     def __init__(self, url: str, database: str, username: str, password_or_api_key: str):
         self.url = url.rstrip("/")
         self.db = database
@@ -99,6 +110,9 @@ class XmlRpcTransport:
              context: Optional[dict] = None, **kwargs: Any) -> Any:
         args: list[Any] = [ids] if ids else []
         kw = dict(kwargs)
+        for name in self.POSITIONAL.get(method, ()):
+            if name in kw:
+                args.append(kw.pop(name))
         if context:
             kw["context"] = context
         try:

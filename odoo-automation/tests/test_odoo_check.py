@@ -182,3 +182,54 @@ def test_the_page_runs_it_and_the_demo_says_demo(tmp_path, monkeypatch):
     assert r.status_code == 200
     assert "analytic_distribution" in r.text and "DEMO" in r.text
     assert "look ready to post" in r.text
+
+
+# ----------------------------------------------- the XML-RPC calling convention
+class SpyProxy:
+    """Stands in for xmlrpc.client.ServerProxy and records how execute_kw was called."""
+
+    def __init__(self):
+        self.calls = []
+
+    def execute_kw(self, db, uid, key, model, method, args, kw):
+        self.calls.append({"model": model, "method": method, "args": args, "kwargs": kw})
+        return [1]
+
+
+def xmlrpc_transport():
+    """A transport without a server: __init__ authenticates, and there is nothing to talk to."""
+    from pms_to_odoo.odoo_client import XmlRpcTransport
+    t = object.__new__(XmlRpcTransport)
+    t.db, t.uid, t.secret, t.url = "champion_test", 2, "key", "http://localhost:8069"
+    t._models = SpyProxy()
+    return t
+
+
+def test_create_sends_its_values_positionally():
+    """Odoo reads create's values out of args[0] before the method runs.
+
+    Sent by name they never arrive, args is empty, and Odoo answers "IndexError: tuple index
+    out of range" -- which says nothing about what is wrong. This broke every write over
+    XML-RPC, journal entries included, and was invisible until something met a real server.
+    """
+    t = xmlrpc_transport()
+    t.call("account.account", "create", vals_list=[{"code": "4000"}], context={"x": 1})
+    call = t._models.calls[0]
+    assert call["args"] == [[{"code": "4000"}]], "values must be the first positional argument"
+    assert "vals_list" not in call["kwargs"]
+    assert call["kwargs"] == {"context": {"x": 1}}, "context still travels by name"
+
+
+def test_other_methods_still_pass_their_parameters_by_name():
+    """Only create has the rule; sending search_read's domain positionally would break it."""
+    t = xmlrpc_transport()
+    t.call("account.account", "search_read", domain=[("code", "=", "4000")], fields=["id"])
+    call = t._models.calls[0]
+    assert call["args"] == []
+    assert call["kwargs"] == {"domain": [("code", "=", "4000")], "fields": ["id"]}
+
+
+def test_ids_stay_first_when_a_method_acts_on_records():
+    t = xmlrpc_transport()
+    t.call("account.move", "action_post", ids=[7])
+    assert t._models.calls[0]["args"] == [[7]]
