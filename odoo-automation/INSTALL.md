@@ -788,12 +788,28 @@ and run `python3 -m portal post` and `python3 -m portal report --send` from cron
 The software is finished ahead of these; each one is a value to fill in, not work to do.
 
 1. The chart of accounts, and the mapping worksheet filled in.
-2. Where Odoo is, which version, and a bot user with an API key.
-3. One night's pack from **each hotel**, not one per system. Two hotels on the same PMS can
+2. **How the hotels are organised in Odoo: one company each, or one company for the group?**
+   Chris's reading is one company per hotel, which would fit if they are separate LLCs, but it
+   has not been confirmed and it is the question that changes the most.
+
+   *One company per hotel* means a chart of accounts, a journal and a set of mappings **per
+   property** — seven times the setup, and seven conversations with the bookkeeper instead of
+   one. Analytic accounts become redundant, because the company already says which hotel it is.
+
+   *One company for the group* means one chart, one journal, and one analytic account per hotel
+   to keep the properties apart in reporting. That is what the example mappings assume today.
+
+   Either way the software is unchanged: `company:` in each property's mapping names the
+   company, every GL lookup is scoped to it, and the two arrangements differ only in what those
+   files say. It is worth asking early anyway, because it decides how much of the client's
+   accountant's time this needs — and whether their Odoo subscription covers multi-company,
+   which is worth checking at the same time as the API plan.
+3. Where Odoo is, which version, and a bot user with an API key.
+4. One night's pack from **each hotel**, not one per system. Two hotels on the same PMS can
    print differently enough to need separate work: Embassy Suites and the Hilton Garden Inn are
    both PEP "Final Audit", and the Garden Inn's came out $1,132.35 over until its layout was
    read on its own terms.
-4. The sending address and access to the DNS for that subdomain.
+5. The sending address and access to the DNS for that subdomain.
 
 **Settled, and no longer waiting on anything:** Marriott **Fosse** was carried here for a while
 as the seventh format — the one no sample had ever been seen of. Champion have confirmed the
