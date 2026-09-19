@@ -8,9 +8,19 @@
 # Odoo Community, so there is no licence and no API restriction: on Odoo Online the external
 # API needs the Custom plan, which is what Champion bought, but a Community copy has no such
 # limit and answers the same calls.
+#
+# Both containers share the host's network instead of a Docker bridge, and Odoo reaches the
+# database on 127.0.0.1.  The obvious arrangement -- a bridge network and the hostname "db" --
+# fails inside a GitHub Codespace: the route is right and the FORWARD chain accepts, but the
+# packets are dropped anyway and Odoo dies with "connection to server at db ... timed out".
+# The codespace has iptables rules split across the legacy and nft backends, which is a known
+# Docker-in-Docker problem and not one worth solving from inside somebody's test environment.
+# Sharing the network namespace removes the question: there is no bridge to misconfigure, and
+# 8069 lands directly on the host where Codespaces forwards it from.
 services:
   db:
     image: postgres:16
+    network_mode: host
     environment:
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: odoo
@@ -25,13 +35,12 @@ services:
 
   odoo:
     image: odoo:17
+    network_mode: host
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8069:8069"
     environment:
-      HOST: db
+      HOST: 127.0.0.1
       USER: odoo
       PASSWORD: odoo
     volumes:
