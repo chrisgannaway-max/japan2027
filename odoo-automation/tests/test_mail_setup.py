@@ -95,7 +95,8 @@ def test_presets_are_complete_and_plausible():
         assert p["label"] and p["note"], key
         assert p["SMTP_HOST"] and "." in p["SMTP_HOST"], key
         # Every preset must agree with itself, or it would trip the check it exists to avoid.
-        assert (p["SMTP_PORT"], p["SMTP_SECURITY"]) in (("587", "starttls"), ("465", "ssl")), key
+        assert (p["SMTP_PORT"], p["SMTP_SECURITY"]) in (
+            ("587", "starttls"), ("2525", "starttls"), ("465", "ssl")), key
 
 
 # ------------------------------------------------------------------ the page itself
@@ -208,3 +209,24 @@ def test_a_reply_to_is_carried_when_set(catcher):
 def test_sending_to_nobody_is_refused_before_the_connection(catcher):
     sent, why = mail.send_reporting("", "s", "b")
     assert not sent and "No address" in why and catcher.messages == []
+
+
+def test_a_blocked_port_is_not_reported_as_the_wrong_port():
+    """Render drops outgoing 587 rather than refusing it, so a blocked host reads as a timeout.
+    The old wording answered that with "587 is the one to try" -- to somebody already on 587."""
+    out = mail.explain(TimeoutError("timed out"), host="smtp.postmarkapp.com", port=587,
+                       security="starttls")
+    assert "2525" in out
+    assert "587 is the one to try" not in out
+
+
+def test_being_blocked_on_2525_too_says_no_port_will_help():
+    out = mail.explain(TimeoutError("timed out"), host="smtp.postmarkapp.com", port=2525,
+                       security="starttls")
+    assert "no port will help" in out and "HTTP API" in out
+
+
+def test_the_postmark_preset_uses_a_port_that_hosts_do_not_block():
+    """The presets exist to stop somebody picking a number that cannot work."""
+    assert mail.PRESETS["postmark"]["SMTP_PORT"] == "2525"
+    assert "587" in mail.PRESETS["postmark"]["note"]

@@ -53,10 +53,12 @@ PRESETS = {
     "resend": {"label": "Resend", "SMTP_HOST": "smtp.resend.com", "SMTP_PORT": "587",
                "SMTP_SECURITY": "starttls", "SMTP_USER": "resend",
                "note": "The password is an API key from resend.com/api-keys. 3,000 a month free."},
-    "postmark": {"label": "Postmark", "SMTP_HOST": "smtp.postmarkapp.com", "SMTP_PORT": "587",
+    "postmark": {"label": "Postmark", "SMTP_HOST": "smtp.postmarkapp.com", "SMTP_PORT": "2525",
                  "SMTP_SECURITY": "starttls", "SMTP_USER": "",
                  "note": "User and password are both the Server API token. 100 a month free, "
-                         "and the same account can receive the night-audit packs."},
+                         "and the same account can receive the night-audit packs. Port 2525 "
+                         "rather than the usual 587: Render blocks 587 outright, and Postmark "
+                         "answers on both."},
     "brevo": {"label": "Brevo", "SMTP_HOST": "smtp-relay.brevo.com", "SMTP_PORT": "587",
               "SMTP_SECURITY": "starttls", "SMTP_USER": "",
               "note": "User is the login shown under SMTP & API; the password is the SMTP key. "
@@ -175,8 +177,18 @@ def explain(e: Exception, host: str = "", port: int = 0, security: str = "") -> 
     if isinstance(e, socket.gaierror) or "name or service not known" in low or "nodename nor servname" in low:
         return f"{raw}\n\nThere is no such server as '{host}'. Check SMTP_HOST for a typo."
     if isinstance(e, (ConnectionRefusedError, TimeoutError)) or "timed out" in low or "refused" in low:
+        # Render, Heroku and most of the cheap hosts block outgoing 25, 465 and 587 to keep
+        # spammers off, and they do it by dropping the packets rather than refusing them -- so
+        # it reads as a timeout, which reads as "wrong port".  It is not the port: 587 is right
+        # and still times out.  2525 is the same service on a number nobody blocks, and every
+        # mail provider worth using listens on it.  Saying "try 587" to somebody already on 587
+        # is how an afternoon goes missing.
+        also = " 2525 is the same service on a port that hosts do not block; try that next."
+        if str(port) == "2525":
+            also = (" You are already on 2525, so the host is blocking outgoing mail generally "
+                    "and no port will help -- the provider's HTTP API is the way out.")
         return (f"{raw}\n\nNothing answered on {host}:{port}. Either the port is wrong, or the "
-                "host this site runs on blocks outgoing mail on it. 587 is the one to try.")
+                f"host this site runs on blocks outgoing mail on it.{also}")
     return raw
 
 
@@ -198,8 +210,8 @@ def checks() -> list[tuple[str, str]]:
     if port == "465" and security != "ssl":
         out.append(("warn", "Port 465 wants SMTP_SECURITY=ssl; with starttls the connection "
                             "breaks before anything is sent."))
-    if port == "587" and security == "ssl":
-        out.append(("warn", "Port 587 wants SMTP_SECURITY=starttls, not ssl."))
+    if port in ("587", "2525") and security == "ssl":
+        out.append(("warn", f"Port {port} wants SMTP_SECURITY=starttls, not ssl."))
     if setting("SMTP_USER") and not setting("SMTP_PASSWORD"):
         out.append(("warn", "SMTP_USER is set with no SMTP_PASSWORD."))
     if setting("SMTP_PASSWORD") and not setting("SMTP_USER"):
