@@ -804,7 +804,23 @@ The software is finished ahead of these; each one is a value to fill in, not wor
    files say. It is worth asking early anyway, because it decides how much of the client's
    accountant's time this needs — and whether their Odoo subscription covers multi-company,
    which is worth checking at the same time as the API plan.
-3. Where Odoo is, which version, and a bot user with an API key.
+3. Where Odoo is, which version, and a bot user with an API key. **What that user needs, and
+   what it must not have**, learned from setting one up against a real Odoo:
+
+   | Give it | Why |
+   |---|---|
+   | *Accounting* → **Accountant** (`account.group_account_user`) | Without it there is no access to journal entries at all. Assign it on the **Users** screen, never by editing groups directly: Odoo grants the groups a group implies, and half the rights produces failures that look like something else entirely. |
+   | **Analytic Accounting** switched on, if the mapping tags lines | An Odoo feature that is off does not read as absent — it answers *"Contact your administrator to request access if necessary"*, which looks like a credentials problem and is not one. |
+   | Access to **every company** whose hotels it posts for | If Champion run one company per hotel, a bot that can only see one will report the others' accounts as missing rather than as forbidden. |
+
+   **It does not need to create GL accounts, and should not be able to.** Nothing here ever
+   creates one: a code that is not in the chart of accounts is a question for their accountant,
+   and an automation that quietly invents `4000` to make a night balance is worse than one that
+   stops. The connection check names the missing codes instead.
+
+   A plain user password works over XML-RPC on a self-hosted server, which is useful while
+   testing. Use a real API key in production — it can be revoked without changing anyone's
+   login.
 4. One night's pack from **each hotel**, not one per system. Two hotels on the same PMS can
    print differently enough to need separate work: Embassy Suites and the Hilton Garden Inn are
    both PEP "Final Audit", and the Garden Inn's came out $1,132.35 over until its layout was
